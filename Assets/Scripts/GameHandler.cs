@@ -1,5 +1,3 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 
 public class GameHandler : MonoBehaviour
@@ -10,9 +8,10 @@ public class GameHandler : MonoBehaviour
         Debug.Log("GameHandler.Start");
     }
 
+    /*
     // Update is called once per frame
     private void Update()
     {
-        
     }
+    */
 }

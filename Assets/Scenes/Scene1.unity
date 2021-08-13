@@ -450,3 +450,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   walkSpeed: 3
+  idleLeftAnimation: {fileID: 7400000, guid: 90a6d765c90c51249a81bf49eb4b1bf8, type: 2}
+  idleRightAnimation: {fileID: 7400000, guid: a4da685506b38ec4b85e48eb2bff8ba5, type: 2}
+  walkLeftAnimation: {fileID: 7400000, guid: d7b703b122f083246b63ff27083468af, type: 2}
+  walkRightAnimation: {fileID: 7400000, guid: 7ded92e5c72018942b26ca4d2947281b, type: 2}
