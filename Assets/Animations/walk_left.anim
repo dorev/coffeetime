@@ -6,7 +6,7 @@ AnimationClip:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: bob_walk_left
+  m_Name: walk_left
   serializedVersion: 6
   m_Legacy: 0
   m_Compressed: 0
@@ -20,22 +20,20 @@ AnimationClip:
   m_PPtrCurves:
   - curve:
     - time: 0
-      value: {fileID: -5151831393880896460, guid: 40527a5415009bb47a6c025c454fa3f8, type: 3}
-    - time: 0.1
       value: {fileID: 4978993246574033228, guid: 40527a5415009bb47a6c025c454fa3f8, type: 3}
-    - time: 0.21666667
+    - time: 0.15
       value: {fileID: 8926255821993241175, guid: 40527a5415009bb47a6c025c454fa3f8, type: 3}
-    - time: 0.31666666
+    - time: 0.28333333
       value: {fileID: 5264275988061085446, guid: 40527a5415009bb47a6c025c454fa3f8, type: 3}
-    - time: 0.4
+    - time: 0.43333334
       value: {fileID: -5020544795993671169, guid: 40527a5415009bb47a6c025c454fa3f8, type: 3}
-    - time: 0.5
+    - time: 0.56666666
       value: {fileID: 2077528718762228227, guid: 40527a5415009bb47a6c025c454fa3f8, type: 3}
-    - time: 0.6
-      value: {fileID: 6442276174316902663, guid: 40527a5415009bb47a6c025c454fa3f8, type: 3}
     - time: 0.71666664
+      value: {fileID: 6442276174316902663, guid: 40527a5415009bb47a6c025c454fa3f8, type: 3}
+    - time: 0.85
       value: {fileID: 5007335499398490455, guid: 40527a5415009bb47a6c025c454fa3f8, type: 3}
-    - time: 0.81666666
+    - time: 1
       value: {fileID: 1515511199039867788, guid: 40527a5415009bb47a6c025c454fa3f8, type: 3}
     attribute: m_Sprite
     path: 
@@ -56,7 +54,6 @@ AnimationClip:
       customType: 23
       isPPtrCurve: 1
     pptrCurveMapping:
-    - {fileID: -5151831393880896460, guid: 40527a5415009bb47a6c025c454fa3f8, type: 3}
     - {fileID: 4978993246574033228, guid: 40527a5415009bb47a6c025c454fa3f8, type: 3}
     - {fileID: 8926255821993241175, guid: 40527a5415009bb47a6c025c454fa3f8, type: 3}
     - {fileID: 5264275988061085446, guid: 40527a5415009bb47a6c025c454fa3f8, type: 3}
@@ -70,7 +67,7 @@ AnimationClip:
     m_AdditiveReferencePoseClip: {fileID: 0}
     m_AdditiveReferencePoseTime: 0
     m_StartTime: 0
-    m_StopTime: 0.8333333
+    m_StopTime: 1.0166667
     m_OrientationOffsetY: 0
     m_Level: 0
     m_CycleOffset: 0

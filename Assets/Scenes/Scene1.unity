@@ -344,6 +344,7 @@ GameObject:
   - component: {fileID: 1786460753}
   - component: {fileID: 1786460752}
   - component: {fileID: 1786460751}
+  - component: {fileID: 1786460755}
   - component: {fileID: 1786460754}
   m_Layer: 0
   m_Name: Bob
@@ -398,7 +399,7 @@ SpriteRenderer:
   m_FlipX: 0
   m_FlipY: 0
   m_DrawMode: 0
-  m_Size: {x: 0.3, y: 0.48}
+  m_Size: {x: 0.64, y: 0.64}
   m_AdaptiveModeThreshold: 0.5
   m_SpriteTileMode: 0
   m_WasSpriteAssigned: 1
@@ -446,11 +447,28 @@ MonoBehaviour:
   m_GameObject: {fileID: 1786460750}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: fdfa1766dc0230f47b3dfac527dc4d40, type: 3}
+  m_Script: {fileID: 11500000, guid: 96aa863b5bd049b40bfa81c2fdf8b47e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  walkSpeed: 3
-  idleLeftAnimation: {fileID: 7400000, guid: 90a6d765c90c51249a81bf49eb4b1bf8, type: 2}
-  idleRightAnimation: {fileID: 7400000, guid: a4da685506b38ec4b85e48eb2bff8ba5, type: 2}
-  walkLeftAnimation: {fileID: 7400000, guid: d7b703b122f083246b63ff27083468af, type: 2}
-  walkRightAnimation: {fileID: 7400000, guid: 7ded92e5c72018942b26ca4d2947281b, type: 2}
+  speed: 1
+--- !u!50 &1786460755
+Rigidbody2D:
+  serializedVersion: 4
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1786460750}
+  m_BodyType: 1
+  m_Simulated: 1
+  m_UseFullKinematicContacts: 0
+  m_UseAutoMass: 0
+  m_Mass: 1
+  m_LinearDrag: 0
+  m_AngularDrag: 0.05
+  m_GravityScale: 1
+  m_Material: {fileID: 0}
+  m_Interpolate: 0
+  m_SleepingMode: 1
+  m_CollisionDetection: 0
+  m_Constraints: 0
