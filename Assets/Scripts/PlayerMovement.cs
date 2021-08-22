@@ -4,8 +4,8 @@ using UnityEngine;
 
 public class PlayerMovement : MonoBehaviour
 {
-    private Rigidbody2D rigidBody;
-    private Animator animator;
+    public Rigidbody2D rigidBody;
+    public Animator animator;
     private Vector2 movement;
 
     enum Orientation
@@ -23,8 +23,6 @@ public class PlayerMovement : MonoBehaviour
 
     void Start()
     {
-        rigidBody = GetComponent<Rigidbody2D>();
-        animator = GetComponent<Animator>();
     }
 
     void Update()
