@@ -23,10 +23,30 @@ public class PlayerState : MonoBehaviour
         }
     }
 
-    void DrinkCoffee(int coffeeAmount)
+    public void DrinkCoffee(int coffeeAmount)
     {
-        Debug.Log("Gulp! Drinks " + coffeeAmount + " coffee.");
-        currentCoffee -= coffeeAmount;
+        if((currentCoffee - coffeeAmount) < 0)
+        {
+            currentCoffee = 0;
+        }
+        else
+        {
+            currentCoffee -= coffeeAmount;
+        }
         coffeeBar.SetCoffee(currentCoffee);
+        Debug.Log("Gulp! Drinks " + coffeeAmount + " coffee. Current coffee level is " + currentCoffee);
+    }
+    public void RefillCoffee(int coffeeAmount)
+    {
+        if((currentCoffee + coffeeAmount) > maxCoffee)
+        {
+            currentCoffee = maxCoffee;
+        }
+        else
+        {
+            currentCoffee += coffeeAmount;
+        }
+        coffeeBar.SetCoffee(currentCoffee);
+        Debug.Log("Fuck yeah!! Refills " + coffeeAmount + " coffee. Current coffee level is " + currentCoffee);
     }
 }

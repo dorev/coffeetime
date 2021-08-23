@@ -6,7 +6,7 @@ public class PlayerMovement : MonoBehaviour
 {
     public Rigidbody2D rigidBody;
     public Animator animator;
-    private Vector2 movement;
+    Vector2 movement;
 
     enum Orientation
     {
@@ -16,14 +16,10 @@ public class PlayerMovement : MonoBehaviour
         Left
     }
 
-    private Orientation orientation = Orientation.Down;
+    Orientation orientation = Orientation.Down;
 
     [Range(0f, 10f)]
     public float speed = 3f;
-
-    void Start()
-    {
-    }
 
     void Update()
     {
