@@ -1,5 +1,6 @@
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Audio;
 
@@ -38,6 +39,10 @@ public class AudioManager : MonoBehaviour
 {
     public Sound[] sounds;
 
+    private static AudioManager instance;
+    private Queue<Sound> soundQueue;
+    private Sound soundCurrentlyPlaying;
+
     public static AudioManager GetInstance()
     {
         return instance;
@@ -53,7 +58,6 @@ public class AudioManager : MonoBehaviour
         else
         {
             instance = this;
-            soundQueue = new Queue();
         }
 
         // Initialize clips provided in Inspector
@@ -132,7 +136,7 @@ public class AudioManager : MonoBehaviour
         }
 
         // Pop and play a sound
-        soundCurrentlyPlaying = (Sound)soundQueue.Dequeue();
+        soundCurrentlyPlaying = soundQueue.Dequeue();
         soundCurrentlyPlaying.Play();
 
         // Monitor the end of the clip
@@ -156,8 +160,4 @@ public class AudioManager : MonoBehaviour
         }
         return soundToPlay;
     }
-
-    private static AudioManager instance;
-    private Queue soundQueue;
-    private Sound soundCurrentlyPlaying;
 }
