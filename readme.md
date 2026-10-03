@@ -1,3 +1,0 @@
-# CoffeeTime
-
-Gros projet!

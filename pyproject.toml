@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "bot-aide"
+version = "0.1.0"
+description = "Bot d'aide et de signalement pour Discord et Twitch"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "discord.py>=2.7,<3",
+    "twitchAPI>=4.5,<5",
+    "python-dotenv>=1.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "pytest-asyncio>=0.23"]
+
+[project.scripts]
+bot-aide = "bot_aide.__main__:run"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
