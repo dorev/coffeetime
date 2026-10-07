@@ -1,280 +1,143 @@
-# Plan de développement — MVP « Bot d'aide et de signalement »
+# Plan — Outil d'accès direct aux TRN
 
-> Prototype Python, hébergé localement (un ordinateur ou un mini-serveur de l'organisme),
-> pour Discord et Twitch. Objectif : **simple, fiable, peu coûteux, respectueux de la vie privée.**
+> Réponse au document de requis « Projet – Outil d'accès direct aux TRN » (FGV, version de travail).
+> Option retenue : **A — aiguillage seulement**. Le service affiche la disponibilité et dirige vers
+> le système de tickets Discord existant ; il ne reçoit aucune demande lui-même.
 
-Légende de l'état : ✅ fait dans ce dépôt · 🧪 codé, à valider en conditions réelles · ⬜ à faire
-
----
-
-## 1. Objectifs et périmètre
-
-### Ce que le MVP doit permettre
-1. À n'importe qui de **demander de l'aide** et d'être mis en contact **en privé** avec un·e intervenant·e.
-2. À n'importe qui de **signaler un comportement**, éventuellement **anonymement**.
-3. À l'équipe de **voir, prendre en charge et fermer** chaque dossier depuis un seul salon Discord.
-4. Sur Twitch, d'offrir les mêmes portes d'entrée (`!aide`, `!signaler`) **sans jamais discuter de sujets sensibles dans le chat public**.
-
-### Hors périmètre (volontairement)
-- Modération automatique (bannir, supprimer des messages, détecter des mots-clés).
-- Tableau de bord web, comptes utilisateurs, application mobile.
-- Hébergement infonuagique : prévu **après** le pilote (voir §10).
-- Chuchotements Twitch : API restrictive (compte vérifié par téléphone, quotas), peu fiable pour un MVP.
-
-### Critères de réussite du MVP
-- Une demande ou un signalement arrive dans `#signalements` en **moins de 5 secondes**.
-- Aucune donnée personnelle n'est visible publiquement.
-- Le bot redémarre seul après une panne ou un redémarrage de l'ordinateur.
-- Une personne non technique de l'équipe peut traiter un dossier sans formation (2 boutons).
+Légende : ✅ fait dans ce dépôt · 🧪 à valider en conditions réelles · ⬜ à faire
 
 ---
 
-## 2. Architecture
+## 1. Ce qu'on livre
 
-```
-┌──────────────── Ordinateur local (Windows / macOS / Linux) ────────────────┐
-│  python -m bot_aide   (un seul processus asyncio)                          │
-│                                                                            │
-│  ┌──────────────┐   notify_staff()   ┌──────────────┐   ┌───────────────┐  │
-│  │ twitch_bot   │ ─────────────────► │ discord_bot  │ ─►│ db (SQLite)   │  │
-│  │ EventSub WS  │                    │ Gateway WS   │   │ data/*.sqlite3│  │
-│  └──────┬───────┘                    └──────┬───────┘   └───────────────┘  │
-└─────────┼───────────────────────────────────┼──────────────────────────────┘
-          │ connexions SORTANTES uniquement   │
-          ▼                                   ▼
-   Twitch (chat public)              Discord (serveur de l'organisme)
-   !aide / !signaler                 /aide, /signaler, clic droit,
-                                     panneau à boutons, #signalements
-```
+### Livrable 1 — « Lien officiel » (sans serveur, en quelques jours)
+Répond à l'**étape 2** et à l'**option 1** du document.
 
-**Pourquoi c'est simple à héberger localement :** Discord (Gateway) et Twitch (EventSub WebSocket)
-fonctionnent par connexions **sortantes**. Il n'y a **aucun port à ouvrir**, aucun nom de domaine,
-aucun certificat. Une connexion Internet ordinaire suffit.
-
-### Modules
-
-| Fichier | Rôle |
+| Élément | État |
 |---|---|
-| `src/bot_aide/__main__.py` | Point d'entrée, démarre Discord + Twitch dans la même boucle asyncio |
-| `src/bot_aide/config.py` | Lecture et validation du `.env` |
-| `src/bot_aide/db.py` | Table `reports` (SQLite), transitions de statut, purge |
-| `src/bot_aide/ratelimit.py` | Anti-abus : N actions / personne / heure |
-| `src/bot_aide/messages.py` | **Tous les textes publics** (à faire relire par l'organisme) |
-| `src/bot_aide/discord_bot.py` | Commandes, formulaire, fils privés, boutons de suivi |
-| `src/bot_aide/twitch_bot.py` | Logique des commandes Twitch (testable) + connexion EventSub |
-| `tests/` | Tests automatisés (pytest) |
+| Page statique : explication, bouton vers le Discord, heures habituelles, ressources d'urgence (`livrable1/index.html`) | ✅ |
+| Guide de mise en ligne gratuite + invitation Discord permanente (`livrable1/README.md`) | ✅ |
+| Adresse officielle, ex. `aide.gardiensvirtuels.org` | ⬜ FGV |
+| Commande `!trn` statique, texte à épingler, QR, image de panneau Twitch | ✅ textes · ⬜ image |
 
-### Choix techniques
+### Livrable 2 — Service d'aiguillage (prototype pour le pilote)
+Répond aux **options 2, 3 et 4** et à l'**étape 4** du document.
 
-| Besoin | Choix | Raison |
-|---|---|---|
-| Langage | Python 3.11+ | Lisible, nombreuses ressources pour débuter |
-| Discord | `discord.py` ≥ 2.7 | Référence ; gère les boutons persistants et les cases à cocher dans les formulaires |
-| Twitch | `twitchAPI` ≥ 4.5 | EventSub WebSocket et envoi de messages par l'API officielle (l'IRC est l'ancienne méthode) |
-| Stockage | SQLite (fichier) | Rien à installer, sauvegarde = copier un fichier |
-| Secrets | `.env` + `python-dotenv` | Hors du code, ignoré par git |
-| Intents Discord | aucun privilégié | Moins de permissions = moins de risques ; le contenu des messages signalés arrive via l'interaction |
+**Public**
+- ✅ Page d'accès avec statut en direct (🟢 / 🟡 / 🔴), message de l'équipe, bouton adapté au statut.
+- ✅ Ressources d'urgence, affichées **en premier** quand l'équipe est hors ligne.
+- ✅ Lien universel `/go` → Discord des TRN (compteur anonyme par provenance).
+
+**Diffuseurs** (intégration unique, mise à jour automatique)
+- ✅ `!trn` pour Nightbot, StreamElements, Fossabot via `/status.txt`.
+- ✅ Widget Web (`/widget`), incrustation OBS (`/widget?theme=overlay`), badge (`/badge.svg`), QR (`/qr.svg`).
+- ✅ Page `/trousse` qui génère tous les extraits pour une chaîne donnée.
+
+**TRN (privé)**
+- ✅ Connexion « Se connecter avec Discord » réservée au rôle TRN (ou mot de passe pour les essais).
+- ✅ Trois boutons de statut, message public facultatif, durée de validité.
+- ✅ Retour automatique à « hors ligne » à échéance (un « disponible » oublié est pire que rien).
+- ✅ Journal des changements (qui, quand) et statistiques anonymes sur 30 jours.
+
+**Exploitation**
+- ✅ Conteneur Docker + `docker-compose.yml`, configuration par `.env`, données dans un seul fichier SQLite.
+- ✅ Tests automatisés (35) : statut et échéance, compteurs, pages, intégrations, connexion, CSRF.
 
 ---
 
-## 3. Modèle de données
+## 2. Correspondance avec les critères du document (§6)
 
-Une seule table, `reports`, pour les **signalements** (`kind = report`) et les **demandes d'aide** (`kind = help`) :
-
-| Colonne | Contenu |
+| Critère | Réponse |
 |---|---|
-| `id` | Numéro de dossier affiché partout (#12) |
-| `created_at` | Date UTC |
-| `source` | `discord` ou `twitch` |
-| `kind` | `report` ou `help` |
-| `reporter` | Pseudo + ID de la personne qui signale — **NULL si anonyme** |
-| `target` | Personne concernée (facultatif) |
-| `location` | Salon, chaîne Twitch, lien du fil privé |
-| `description` | Texte libre |
-| `evidence` | Lien vers un message, un extrait, un clip |
-| `status` | `open` → `claimed` → `closed` (ou `open` → `closed`) |
-| `claimed_by`, `closed_at` | Suivi par l'équipe |
-| `staff_message_id` | Message correspondant dans `#signalements` |
-
-**Rétention :** les dossiers **fermés** sont supprimés automatiquement après `RETENTION_DAYS` (90 jours par défaut), chaque jour à 4 h UTC.
+| Simplicité pour les jeunes | Une page, un bouton, statut en couleur et en mots |
+| Nombre d'étapes | Voir l'annonce → clic → page TRN → clic → Discord (le ticket reste dans Discord) |
+| Intégration diffuseurs | Une ligne à coller dans le chatbot ; widget/OBS/QR prêts sur `/trousse` |
+| Twitch, Discord, Web | Chat Twitch (chatbot), Discord (lien épinglé), Web (page, widget, badge) |
+| Afficher la disponibilité | Oui, partout, mis à jour par les TRN |
+| Confidentialité | Aucune donnée sur le public : pas d'IP, pas de journal, compteurs agrégés par jour |
+| Sécurité des communications | HTTPS ; la conversation se fait dans Discord (inchangé) |
+| Coûts | Livrable 1 : 0 $ · Livrable 2 : 0 à ~7 $/mois (VPS) + domaine |
+| Maintenance | ~800 lignes Python, 3 dépendances principales, un conteneur |
+| Évolutivité | Le statut et les compteurs sont la base d'un futur portail (option 5) |
+| Contrôle FGV | Code et données chez la FGV, hébergement au choix |
+| Dépendance externe | Discord reste le canal d'intervention ; le point d'entrée, lui, appartient à la FGV |
 
 ---
 
-## 4. Parcours utilisateurs
+## 3. Parcours
 
-### Discord — demande d'aide
-1. La personne tape `/aide`, ou clique sur **💬 Parler à un·e intervenant·e** dans le panneau public.
-2. Le bot crée un **fil privé** `aide-<n°>` dans le salon d'aide, y ajoute la personne et y publie un message d'accueil avec les ressources de crise.
-3. Un dossier « Demande d'aide » apparaît dans `#signalements`, avec mention du rôle Intervenant·e et un lien vers le fil.
-4. Un·e intervenant·e clique sur **Je prends en charge**, rejoint le fil, puis clique sur **Fermer** à la fin.
+**Personne qui cherche de l'aide** : voit `!trn`, le widget ou le QR → arrive sur la page →
+lit le statut → clique « Parler à un·e TRN » / « Laisser une demande » → serveur Discord des TRN →
+ouvre un ticket.
 
-### Discord — signalement
-- `/signaler`, le bouton **🚩 Signaler**, ou **clic droit sur un message → Applications → Signaler ce message**. Avec le clic droit, l'auteur, le salon et le lien du message sont préremplis.
-- Formulaire : personne concernée · où · que s'est-il passé · lien ou preuve · ☐ **Rester anonyme**.
-- La personne reçoit une confirmation (visible par elle seule) avec le numéro du dossier.
+**Diffuseur** : reçoit le lien `/trousse?src=sa_chaine` → copie la commande dans son chatbot,
+ajoute le widget OBS ou le QR → terminé.
 
-### Twitch
-| Message dans le chat | Réponse du bot | Effet côté équipe |
+**TRN** : début de quart → `/admin` → « 🟢 Disponible » (4 h) → au besoin « 🟡 Occupée » →
+fin de quart « 🔴 Hors ligne » (sinon retour automatique à échéance).
+
+---
+
+## 4. Étapes
+
+### Étape 1 — Cadrage avec la FGV ⬜
+- [ ] Définir **« disponible »** et **« occupée »** concrètement (ex. : occupée = tous les TRN en intervention).
+- [ ] Heures de présence et durée par défaut d'un statut.
+- [ ] Décrire le parcours actuel des tickets Discord : combien d'étapes après l'invitation ?
+- [ ] Valider les textes (`texts.py`) et les ressources d'urgence.
+- [ ] Choisir le nom de domaine et la personne responsable de l'hébergement.
+
+### Étape 2 — Livrable 1 en ligne ⬜ (1 à 3 jours)
+- [ ] Adapter et publier `livrable1/index.html`, brancher le domaine.
+- [ ] Invitation Discord permanente + *Onboarding* vers le salon des tickets.
+- [ ] Remettre la commande statique et le QR à 2 ou 3 diffuseurs.
+
+### Étape 3 — Livrable 2 : mise en service ✅ code · ⬜ déploiement (1 à 2 jours)
+- [ ] Application Discord OAuth (voir README), `.env` de production.
+- [ ] Hébergement (VPS canadien ou serveur FGV) + Caddy (HTTPS).
+- [ ] Faire pointer le domaine officiel vers le service.
+- [ ] 🧪 Tester la connexion Discord avec un compte TRN et un compte sans le rôle.
+
+### Étape 4 — Recette 🧪 (½ journée, avec 1 ou 2 TRN)
+| # | Vérification | Attendu |
 |---|---|---|
-| `!aide` | Lien privé (PUBLIC_HELP_URL) + 911/988 | Dossier « Demande d'aide » |
-| `!signaler @pseudo raison` | « Merci, dossier #n » + lien privé | Dossier « Signalement » (signalé « (modérateur) » si c'est un mod) |
-| `!signaler` seul | Mode d'emploi + lien privé | Rien |
+| 1 | Page d'accès sur téléphone, en mode clair et sombre | Lisible, bouton évident |
+| 2 | TRN passe à 🟢 | Page, widget, badge, `!trn` changent en ≤ 1 min |
+| 3 | Laisser expirer le statut | Retour à 🔴 et ressources en premier |
+| 4 | `!trn` dans un vrai chat (Nightbot et StreamElements) | Une ligne, lien cliquable |
+| 5 | Widget dans OBS | Fond transparent, mise à jour seule |
+| 6 | Compte Discord sans le rôle TRN | Accès refusé |
+| 7 | Clic « Parler à un·e TRN » sans compte Discord | Noter le parcours réel (création de compte) |
 
-### Équipe
-- `#signalements` : un message par dossier, couleur selon le statut (🔴 ouvert, 🟡 pris en charge, 🟢 fermé).
-- Seules les personnes ayant le rôle Intervenant·e peuvent cliquer sur les boutons. Les boutons fonctionnent encore après un redémarrage du bot.
-- `/stats` : nombre de dossiers par type et par statut. `/panneau` : publie le panneau d'aide dans le salon courant.
+### Étape 5 — Pilote ⬜ (2 à 4 semaines, 3 à 5 diffuseurs)
+Mesures (document §8, étape 5) : visites, clics, utilisations de `!trn` **par diffuseur** (tableau de
+l'espace TRN) ; nombre de tickets ouverts (côté Discord) ; retours des TRN et des diffuseurs.
 
----
-
-## 5. Étapes de développement
-
-Durées indicatives pour une personne qui débute, à temps partiel.
-
-### Étape 0 — Préparation (½ à 1 jour) ⬜
-- [ ] Installer Python 3.11+ et Git.
-- [ ] Créer un **serveur Discord de test** (copie de la structure réelle) : rôle `Intervenant·e`, `#signalements` (privé), `#aide`.
-- [ ] Créer l'application Discord et le bot (voir le README, section *Configuration Discord*).
-- [ ] Créer un **compte Twitch dédié au bot** et l'application dans la console développeur Twitch.
-- [ ] Faire valider par l'organisme : textes de `messages.py`, ressources de crise, heures de présence, durée de conservation.
-
-**Critère d'acceptation :** `.env` rempli et `pytest` vert.
-
-### Étape 1 — Socle ✅
-- [x] Structure du projet, configuration validée (`config.py`), journaux.
-- [x] Base SQLite + transitions de statut + purge (`db.py`).
-- [x] Anti-abus (`ratelimit.py`).
-- [x] Tests automatisés : configuration, base de données, anti-abus.
-
-### Étape 2 — Signalements Discord ✅ / 🧪
-- [x] `/signaler` + formulaire (5 champs, dont la case « anonyme »).
-- [x] Menu contextuel « Signaler ce message » prérempli.
-- [x] Publication dans `#signalements` avec mention du rôle.
-- [ ] 🧪 Vérifier sur le serveur de test : anonymat réel (aucun pseudo visible), limite de 5 par heure.
-
-### Étape 3 — Aide Discord (fils privés) ✅ / 🧪
-- [x] `/aide` (réponse visible par la personne seule) + bouton.
-- [x] Création d'un fil privé, ajout de la personne, message d'accueil.
-- [x] `/panneau` : panneau public permanent avec deux boutons.
-- [ ] 🧪 Vérifier que les intervenant·e·s voient les fils (permission « Gérer les fils ») et que les autres membres ne les voient **pas**.
-
-### Étape 4 — Suivi par l'équipe ✅ / 🧪
-- [x] Boutons persistants « Je prends en charge » et « Fermer », réservés au rôle.
-- [x] Mise à jour du message (couleur, intervenant·e).
-- [x] `/stats`, purge quotidienne.
-- [ ] 🧪 Redémarrer le bot et vérifier que les anciens boutons fonctionnent toujours.
-
-### Étape 5 — Twitch ✅ / 🧪
-- [x] Commandes `!aide` / `!signaler` (logique testée hors ligne).
-- [x] Connexion EventSub WebSocket, envoi par l'API Send Chat Message.
-- [x] Alerte vers `#signalements`.
-- [ ] 🧪 Première autorisation OAuth (le navigateur s'ouvre) avec le **compte du bot**.
-- [ ] 🧪 Nommer le bot modérateur sur la chaîne test (`/mod nomdubot`) pour éviter les restrictions du chat.
-
-### Étape 6 — Recette (1 à 2 jours) ⬜
-Dérouler la **liste de vérification** du §6 sur le serveur de test, avec au moins une personne de l'organisme.
-
-### Étape 7 — Déploiement local (½ jour) ⬜
-- [ ] Choisir la machine hôte (allumée en permanence, mises à jour automatiques **sans** redémarrage surprise).
-- [ ] Démarrage automatique (§7).
-- [ ] Sauvegarde quotidienne de `data/` (§7).
-- [ ] Remplacer les identifiants du serveur de test par ceux du serveur réel.
-
-### Étape 8 — Pilote (2 à 4 semaines) ⬜
-- [ ] 1 serveur Discord + 1 ou 2 chaînes Twitch partenaires.
-- [ ] Point hebdomadaire avec les intervenant·e·s : textes, faux signalements, délais.
-- [ ] Décider : on garde l'hébergement local, ou on passe à un serveur (§10) ?
+### Étape 6 — Déploiement au réseau ⬜
+Trousse finalisée (images de panneau, guide d'une page), annonce aux diffuseurs, maintenance.
 
 ---
 
-## 6. Stratégie de tests
+## 5. Confidentialité (Loi 25) et sécurité
 
-### Automatisés (`pytest`, aucune connexion requise)
-- Configuration : valeurs manquantes, nombres invalides, chaînes Twitch normalisées.
-- Base de données : création, anonymat, prise en charge unique, fermeture, purge.
-- Anti-abus : fenêtre glissante.
-- Commandes Twitch : analyse des commandes, réponses, alertes, limites, messages du bot ignorés.
-- Discord : contenu des fiches et boutons selon le statut.
-
-### Liste de vérification manuelle (serveur de test)
-| # | Action | Résultat attendu |
-|---|---|---|
-| 1 | `/aide` en tant que membre | Message visible par soi seul, bouton présent |
-| 2 | Clic sur le bouton d'aide | Fil privé créé ; un autre membre ne le voit pas ; dossier dans `#signalements` |
-| 3 | `/signaler` en cochant « anonyme » | Fiche « Signalé par : Anonyme » ; colonne `reporter` vide en base |
-| 4 | Clic droit sur un message → Signaler | Champs préremplis, lien du message cliquable dans la fiche |
-| 5 | 6 signalements en moins d'une heure | Le 6ᵉ est refusé poliment |
-| 6 | Membre sans rôle clique sur « Je prends en charge » | Refus, la fiche ne change pas |
-| 7 | Intervenant·e clique, puis un·e autre clique | Le second clic est refusé (« déjà pris en charge ») |
-| 8 | Redémarrer le bot, cliquer sur « Fermer » | Fonctionne |
-| 9 | `!aide` sur Twitch | Réponse avec lien + 988 ; dossier dans `#signalements` |
-| 10 | `!signaler @x test` par un mod | Dossier marqué « (modérateur) », cible = x |
-| 11 | Couper Internet 2 minutes | Reconnexion automatique, sans plantage |
+- **Public** : aucune donnée personnelle collectée ni stockée. Uvicorn ne journalise pas les accès ;
+  le proxy (Caddy) est configuré sans journal. Compteurs = (jour, type, provenance, nombre).
+- **TRN** : seuls le nom d'affichage et l'heure des changements de statut sont conservés (200 derniers).
+  Le jeton Discord n'est pas conservé ; la session expire après 12 h.
+- **Protections** : cookies signés (HttpOnly, Secure en HTTPS), jeton CSRF sur chaque formulaire,
+  blocage après 5 mots de passe erronés, en-têtes de sécurité (CSP, no-referrer), espace TRN non intégrable.
+- **Urgence** : le service n'est pas un service d'urgence ; les ressources 24/7 sont toujours visibles.
 
 ---
 
-## 7. Déploiement local
+## 6. Limites connues et suites possibles
 
-### Installation (toutes plateformes)
-```bash
-git clone <ce dépôt> bot-aide && cd bot-aide
-python -m venv .venv
-# Windows : .venv\Scripts\activate    macOS/Linux : source .venv/bin/activate
-pip install -e ".[dev]"
-cp .env.example .env        # puis remplir .env
-pytest                      # doit être vert
-python -m bot_aide          # lancer le bot
-```
-
-### Démarrage automatique
-- **Linux** : service systemd fourni dans `deploy/bot-aide.service` (instructions dans le fichier).
-- **Windows** : Planificateur de tâches → *Créer une tâche* → déclencheur « Au démarrage » →
-  action `C:\chemin\bot-aide\.venv\Scripts\python.exe`, arguments `-m bot_aide`,
-  « Commencer dans » = `C:\chemin\bot-aide`. Cocher « Exécuter même si l'utilisateur n'est pas connecté »
-  et, dans *Paramètres*, « Si la tâche échoue, redémarrer toutes les 1 minute ».
-- **macOS** : un `LaunchAgent` (`~/Library/LaunchAgents`) avec `KeepAlive=true`.
-
-> Avant le premier démarrage automatique, lance le bot **une fois à la main** si Twitch est activé :
-> l'autorisation OAuth ouvre un navigateur. Le jeton est ensuite sauvegardé dans `data/`.
-
-### Sauvegardes
-- Copier `data/bot.sqlite3` chaque jour vers un emplacement **chiffré** (disque externe, dossier infonuagique de l'organisme).
-- Le fichier `.env` doit être conservé à part (gestionnaire de mots de passe), jamais par courriel.
-
----
-
-## 8. Sécurité, confidentialité et Loi 25
-
-- **Minimisation** : on ne stocke que le contenu du formulaire. Pas d'historique de chat, pas d'adresse IP.
-- **Anonymat** : si la case est cochée, l'identité n'est **ni affichée ni enregistrée**. L'anti-abus reste en mémoire seulement.
-- **Conservation** : purge automatique des dossiers fermés (`RETENTION_DAYS`). Les messages dans `#signalements` et les fils sont à supprimer ou archiver selon la même politique (manuellement pour le MVP).
-- **Accès** : `#signalements` et les fils d'aide sont visibles **uniquement** par le rôle Intervenant·e. Activer la double authentification (2FA) pour ce rôle.
-- **Secrets** : `.env` et `data/` sont exclus de git. Si un jeton fuit, le régénérer immédiatement (portail Discord ou console Twitch).
-- **Poste hôte** : session protégée par mot de passe, disque chiffré (BitLocker / FileVault / LUKS).
-- **Transparence** : publier une courte politique de confidentialité (qui voit quoi, combien de temps), avec un lien dans le panneau.
-- **Responsable** : nommer la personne responsable de la protection des renseignements personnels (obligation de la Loi 25).
-- **Urgence** : le bot n'est pas un service d'urgence. Les ressources (911, 988, 1 866 APPELLE, 811) sont affichées à chaque demande d'aide.
-
----
-
-## 9. Limites connues et risques
-
-| Risque | Mitigation |
+| Limite | Piste |
 |---|---|
-| L'ordinateur hôte s'éteint ou perd Internet | Redémarrage automatique ; passer à un VPS après le pilote |
-| Le chat Twitch est public | Le bot ne fait que rediriger ; les détails passent par le canal privé |
-| Faux signalements ou spam | Limite par personne et par heure ; fermer sans suite |
-| Messages du bot bloqués sur Twitch (chat réservé aux abonnés, mode lent) | Nommer le bot modérateur sur chaque chaîne |
-| Dossiers non traités hors des heures de présence | Message « pas un service d'urgence » + ressources 24/7 |
-| La cible d'un signalement voit le bot répondre sur Twitch | Préférer le lien privé pour les cas sensibles (expliqué dans `!aide`) |
+| Il faut un compte Discord (13 ans et plus) pour parler à un TRN | Option B / portail (option 5) : formulaire ou clavardage Web — à évaluer après le pilote |
+| Le statut dépend des TRN qui le mettent à jour | Échéance automatique ; plus tard : lecture du nombre de tickets ouverts |
+| Les images dans Discord sont mises en cache | Pour Discord, utiliser le lien et le texte plutôt que le badge |
+| Une seule équipe, un seul statut | Plusieurs files (langues, régions) si le besoin apparaît |
 
----
-
-## 10. Après le MVP (idées, par priorité)
-
-1. **Hébergement 24/7** : VPS canadien (~6 $/mois, OVHcloud Beauharnois) ou Oracle Cloud *Always Free* (région Montréal). Même code ; ajouter un `Dockerfile`.
-2. Rappel automatique si un dossier reste ouvert plus de X heures.
-3. Fermeture avec motif (catégories) → statistiques anonymisées pour les rapports de l'organisme.
-4. Archivage et suppression automatiques des fils d'aide fermés.
-5. Plusieurs serveurs Discord ou un formulaire web public, pour les personnes sans Discord.
-6. Interface bilingue français / anglais.
+Pistes après le pilote : statut automatique selon l'horaire, rappel aux TRN si 🟢 depuis longtemps
+sans ticket, page en anglais, image PNG du badge pour Discord.

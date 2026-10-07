@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Espace TRN{% endblock %}
+{% block content %}
+<header class="brand"><a href="/">{{ org_name }}</a></header>
+<h1>Espace TRN</h1>
+{% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
+{% if mode == "discord" %}
+  <p>Connecte-toi avec ton compte Discord. L'accès est réservé aux personnes ayant le rôle TRN.</p>
+  <p><a class="cta" href="/admin/login?go=1">Se connecter avec Discord</a></p>
+{% else %}
+  <form method="post" action="/admin/login" class="stack">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <label for="name">Ton prénom (pour le journal des changements)</label>
+    <input id="name" name="name" autocomplete="nickname" maxlength="40" required>
+    <label for="password">Mot de passe de l'équipe</label>
+    <input id="password" name="password" type="password" autocomplete="current-password" required>
+    <button type="submit" class="cta">Entrer</button>
+  </form>
+{% endif %}
+{% endblock %}

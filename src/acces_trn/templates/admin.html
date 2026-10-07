@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}Espace TRN{% endblock %}
+{% block content %}
+<header class="brand admin-bar">
+  <span>Espace TRN · {{ user.name }}</span>
+  <form method="post" action="/admin/logout"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="link">Se déconnecter</button></form>
+</header>
+
+<section class="card status-{{ status }}">
+  <p class="pill"><span aria-hidden="true">{{ t.emoji }}</span> {{ t.label }}</p>
+  {% if current.expired %}
+    <p class="note">Le statut précédent est arrivé à échéance : retour automatique à « hors ligne ».</p>
+  {% elif current.expires_at and status != 'offline' %}
+    <p class="muted">Retour automatique à « hors ligne » le {{ fmt(current.expires_at) }}.</p>
+  {% endif %}
+  {% if current.message %}<p class="note">« {{ current.message }} »</p>{% endif %}
+  <p class="muted small">Dernier changement : {{ fmt(current.set_at) }}{% if current.set_by %} par {{ current.set_by }}{% endif %}</p>
+</section>
+
+<form method="post" action="/admin/status" class="stack">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <label for="message">Message public (facultatif, 200 caractères)</label>
+  <input id="message" name="message" maxlength="200" placeholder="Ex. : De retour à 19 h" value="{{ current.message }}">
+  <p class="muted small hint">Vide ce champ si le message ne s'applique plus.</p>
+  <label for="duration">Valable pendant</label>
+  <select id="duration" name="duration">
+    {% for h in durations %}<option value="{{ h }}"{% if h == default_duration %} selected{% endif %}>{{ h }} h</option>{% endfor %}
+  </select>
+  <p><strong>Choisis le statut de l'équipe :</strong></p>
+  <div class="status-buttons">
+    {% for value, st in statuses %}
+    <button type="submit" name="status" value="{{ value }}" class="status-btn status-{{ value }}{% if value == status %} is-current{% endif %}">
+      <span aria-hidden="true">{{ st.emoji }}</span> {{ st.label }}
+    </button>
+    {% endfor %}
+  </div>
+</form>
+
+<section>
+  <h2>Utilisation (30 derniers jours)</h2>
+  {% if totals %}
+  <table>
+    <thead><tr><th>Type</th><th>Provenance</th><th>Nombre</th></tr></thead>
+    <tbody>
+    {% for row in totals %}
+      <tr><td>{{ {"page": "Visites de la page", "go": "Clics « Parler à un·e TRN »", "chat": "Commande !trn"}.get(row.kind, row.kind) }}</td><td>{{ row.source }}</td><td>{{ row.n }}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}<p class="muted">Aucune donnée pour l'instant.</p>{% endif %}
+</section>
+
+<section>
+  <h2>Derniers changements de statut</h2>
+  <ul class="log">
+    {% for c in changes %}<li>{{ fmt(c.at) }} — {{ status_labels.get(c.status, c.status) }} — {{ c.set_by }}</li>{% else %}<li class="muted">Aucun.</li>{% endfor %}
+  </ul>
+</section>
+{% endblock %}

@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="fr-CA">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <title>{% block title %}Parler à un·e TRN{% endblock %} · {{ org_name }}</title>
+  <link rel="stylesheet" href="/static/style.css">
+  {% block head %}{% endblock %}
+</head>
+<body class="{% block body_class %}{% endblock %}">
+  <main class="wrap">
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>

@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block content %}
+<header class="brand">{{ org_name }}</header>
+
+<section class="card status-{{ status }}" aria-live="polite">
+  <p class="pill"><span aria-hidden="true">{{ t.emoji }}</span> {{ t.label }}</p>
+  <h1>{{ t.headline }}</h1>
+  {% if current.message %}<p class="note">{{ current.message }}</p>{% endif %}
+  <a class="cta" href="{{ go_url }}" rel="noopener">{{ t.action }}</a>
+  <p class="muted">{{ t.explanation }}</p>
+</section>
+
+{% if status == 'offline' %}{% include "_resources.html" %}{% endif %}
+
+<section>
+  <h2>C'est quoi, un·e TRN ?</h2>
+  <p>Les <strong>travailleuses et travailleurs de rue numériques</strong> sont des intervenant·e·s
+  qui vont à la rencontre des gens en ligne. Tu peux leur parler de ce que tu vis, sans jugement,
+  en toute confidentialité. Pas besoin que ce soit « grave ».</p>
+  {% if hours_text %}<p><strong>Heures de présence habituelles :</strong> {{ hours_text }}</p>{% endif %}
+</section>
+
+{% if status != 'offline' %}{% include "_resources.html" %}{% endif %}
+
+<footer class="muted small">
+  <p>Cette page ne recueille aucun renseignement personnel. La conversation se fait en privé sur Discord.</p>
+  <p><a href="/trousse">Diffuseur·euse ? Ajoute ce bouton à ta chaîne</a></p>
+</footer>
+{% endblock %}

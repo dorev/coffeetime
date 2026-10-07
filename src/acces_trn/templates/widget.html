@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="fr-CA">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <title>{{ t.label }}</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <script src="/static/widget.js" defer></script>
+</head>
+<body class="widget theme-{{ theme }}">
+  <a class="widget-btn status-{{ status }}" href="{{ base_url }}{{ go_url }}" target="_blank" rel="noopener"
+     data-status-url="/status.json">
+    <span class="dot" aria-hidden="true"></span>
+    <span class="widget-label" data-field="label">{{ t.label }}</span>
+    <span class="widget-action" data-field="action">{{ t.action }} →</span>
+  </a>
+</body>
+</html>

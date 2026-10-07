@@ -1,0 +1,8 @@
+<section class="resources{% if status == 'offline' %} resources--first{% endif %}" aria-labelledby="urgence">
+  <h2 id="urgence">Besoin d'aide immédiate ?</h2>
+  <ul>
+    {% for label, number, href in resources %}
+    <li><a href="{{ href }}"><strong>{{ number }}</strong></a> — {{ label }}</li>
+    {% endfor %}
+  </ul>
+</section>

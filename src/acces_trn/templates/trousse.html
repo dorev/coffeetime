@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Trousse d'intégration{% endblock %}
+{% block content %}
+<header class="brand"><a href="/">{{ org_name }}</a></header>
+<h1>Trousse d'intégration pour les diffuseur·euse·s</h1>
+<p>Ajoute un accès direct aux TRN dans ta communauté. Tout se met à jour automatiquement selon la
+disponibilité de l'équipe. Remplace <code>{{ src }}</code> par le nom de ta chaîne pour qu'on sache
+d'où viennent les visites (aucune donnée personnelle n'est recueillie).</p>
+<form method="get" class="inline-form">
+  <label for="src">Nom de ta chaîne</label>
+  <input id="src" name="src" value="{{ src }}" pattern="[a-z0-9_\-]{1,40}">
+  <button type="submit">Mettre à jour</button>
+</form>
+
+<h2>1. Lien officiel</h2>
+<pre><code>{{ base_url }}/?src={{ src }}</code></pre>
+<p>À mettre dans ta bio Twitch, tes panneaux, ton Discord, tes réseaux sociaux.</p>
+
+<h2>2. Commande <code>!trn</code> dans le chat Twitch</h2>
+<p>Le bot répond selon le statut, par exemple : « 🟢 Un·e TRN est disponible maintenant… ».</p>
+<h3>Nightbot</h3>
+<pre><code>!addcom !trn $(urlfetch {{ base_url }}/status.txt?src={{ src }})</code></pre>
+<h3>StreamElements</h3>
+<pre><code>!command add !trn ${customapi.{{ base_url }}/status.txt?src={{ src }}}</code></pre>
+<h3>Fossabot</h3>
+<pre><code>$(customapi {{ base_url }}/status.txt?src={{ src }})</code></pre>
+<p class="muted small">Astuce : ajoute aussi un alias <code>!aide</code> qui affiche la même chose.</p>
+
+<h2>3. Widget pour un site Web</h2>
+<p><iframe src="/widget?src={{ src }}" title="Statut TRN" class="widget-preview"></iframe></p>
+<pre><code>&lt;iframe src="{{ base_url }}/widget?src={{ src }}" title="Parler à un·e TRN"
+        style="border:0;width:340px;height:64px"&gt;&lt;/iframe&gt;</code></pre>
+
+<h2>4. Incrustation OBS (source navigateur)</h2>
+<pre><code>{{ base_url }}/widget?src={{ src }}&amp;theme=overlay</code></pre>
+<p>Largeur 340, hauteur 64. Le statut se met à jour toutes les minutes.</p>
+
+<h2>5. Badge image</h2>
+<p><img src="/badge.svg" alt="Statut TRN"></p>
+<pre><code>&lt;a href="{{ base_url }}/?src={{ src }}"&gt;&lt;img src="{{ base_url }}/badge.svg" alt="Statut TRN"&gt;&lt;/a&gt;</code></pre>
+
+<h2>6. Code QR</h2>
+<p><img src="/qr.svg?src={{ src }}" alt="Code QR vers la page TRN" class="qr"></p>
+<p><a href="/qr.svg?src={{ src }}" download="qr-trn-{{ src }}.svg">Télécharger le code QR</a></p>
+
+<h2>7. Ton serveur Discord</h2>
+<p>Épingle ce message dans un salon visible par tout le monde :</p>
+<pre><code>💬 Besoin de parler à quelqu'un ? Les travailleur·euse·s de rue numériques (TRN) sont là pour toi, en privé et sans jugement.
+👉 {{ base_url }}/?src={{ src }}
+Urgence : 911 · Détresse : 988 (appel ou texto, 24/7)</code></pre>
+{% endblock %}
