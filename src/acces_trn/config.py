@@ -1,4 +1,7 @@
-"""Configuration lue depuis les variables d'environnement (fichier .env)."""
+"""Configuration lue depuis les variables d'environnement (fichier .env).
+
+Les intégrations sont facultatives : chacune s'active quand ses variables sont remplies.
+"""
 
 from __future__ import annotations
 
@@ -24,11 +27,28 @@ class Config:
     secret_key: str
     auth_mode: str
     admin_password: str | None
+    # Discord : connexion à /admin (OAuth) et bot des TRN
     discord_client_id: str | None
     discord_client_secret: str | None
     discord_guild_id: str | None
     discord_role_id: str | None
+    discord_bot_token: str | None
+    discord_requests_channel_id: str | None
+    # Twitch : connexion des mods (page /c/…) et bot de chat
+    twitch_client_id: str | None
+    twitch_client_secret: str | None
+    bot_setup_key: str | None
+    # Extension Twitch
+    extension_client_id: str | None
+    extension_secret: str | None
+    # Google Sheets (webhook Apps Script)
+    sheets_webhook_url: str | None
+    sheets_webhook_secret: str | None
+    # Règles
+    request_cooldown_minutes: int
+    mod_session_days: int
     default_duration_hours: int
+    # Contenu
     org_name: str
     hours_text: str
     timezone: ZoneInfo
@@ -38,6 +58,26 @@ class Config:
     @property
     def discord_redirect_uri(self) -> str:
         return f"{self.base_url}/admin/callback"
+
+    @property
+    def twitch_redirect_uri(self) -> str:
+        return f"{self.base_url}/auth/twitch/callback"
+
+    @property
+    def discord_bot_enabled(self) -> bool:
+        return bool(self.discord_bot_token)
+
+    @property
+    def twitch_enabled(self) -> bool:
+        return bool(self.twitch_client_id and self.twitch_client_secret)
+
+    @property
+    def extension_enabled(self) -> bool:
+        return bool(self.extension_client_id and self.extension_secret)
+
+    @property
+    def sheets_enabled(self) -> bool:
+        return bool(self.sheets_webhook_url)
 
 
 def _get(env: dict[str, str], key: str, default: str | None = None) -> str | None:
@@ -50,6 +90,24 @@ def _require(env: dict[str, str], key: str) -> str:
     if value is None:
         raise ConfigError(f"Variable obligatoire manquante : {key}")
     return value
+
+
+def _int(env: dict[str, str], key: str, default: int, low: int, high: int) -> int:
+    raw = _get(env, key, str(default)) or str(default)
+    try:
+        value = int(raw)
+    except ValueError as exc:
+        raise ConfigError(f"{key} doit être un nombre entier") from exc
+    if not low <= value <= high:
+        raise ConfigError(f"{key} doit être entre {low} et {high}")
+    return value
+
+
+def _all_or_none(env: dict[str, str], keys: tuple[str, ...], what: str) -> None:
+    filled = [k for k in keys if _get(env, k)]
+    if filled and len(filled) != len(keys):
+        missing = ", ".join(k for k in keys if k not in filled)
+        raise ConfigError(f"{what} : variable(s) manquante(s) : {missing}")
 
 
 def load_config(env: dict[str, str] | None = None) -> Config:
@@ -68,19 +126,22 @@ def load_config(env: dict[str, str] | None = None) -> Config:
         raise ConfigError(f"AUTH_MODE doit valoir {' ou '.join(AUTH_MODES)}")
 
     admin_password = _get(env, "ADMIN_PASSWORD")
-    discord_keys = ("DISCORD_CLIENT_ID", "DISCORD_CLIENT_SECRET", "DISCORD_GUILD_ID", "DISCORD_ROLE_ID")
     if auth_mode == "discord":
-        for key in discord_keys:
+        for key in ("DISCORD_CLIENT_ID", "DISCORD_CLIENT_SECRET", "DISCORD_GUILD_ID", "DISCORD_ROLE_ID"):
             _require(env, key)
     elif admin_password is None or len(admin_password) < 12:
         raise ConfigError("ADMIN_PASSWORD (12 caractères minimum) est requis en mode password")
 
-    try:
-        duration = int(_get(env, "DEFAULT_DURATION_HOURS", "4") or "4")
-    except ValueError as exc:
-        raise ConfigError("DEFAULT_DURATION_HOURS doit être un nombre entier") from exc
-    if not 1 <= duration <= 24:
-        raise ConfigError("DEFAULT_DURATION_HOURS doit être entre 1 et 24")
+    if _get(env, "DISCORD_BOT_TOKEN"):
+        for key in ("DISCORD_GUILD_ID", "DISCORD_ROLE_ID", "DISCORD_REQUESTS_CHANNEL_ID"):
+            _require(env, key)
+    _all_or_none(env, ("TWITCH_CLIENT_ID", "TWITCH_CLIENT_SECRET"), "Twitch")
+    _all_or_none(env, ("EXTENSION_CLIENT_ID", "EXTENSION_SECRET"), "Extension Twitch")
+    if _get(env, "EXTENSION_CLIENT_ID") and not _get(env, "TWITCH_CLIENT_ID"):
+        raise ConfigError("L'extension Twitch nécessite aussi TWITCH_CLIENT_ID et TWITCH_CLIENT_SECRET")
+    bot_setup_key = _get(env, "BOT_SETUP_KEY")
+    if bot_setup_key and len(bot_setup_key) < 16:
+        raise ConfigError("BOT_SETUP_KEY doit contenir au moins 16 caractères")
 
     tz_name = _get(env, "TIMEZONE", "America/Toronto") or "America/Toronto"
     try:
@@ -98,7 +159,18 @@ def load_config(env: dict[str, str] | None = None) -> Config:
         discord_client_secret=_get(env, "DISCORD_CLIENT_SECRET"),
         discord_guild_id=_get(env, "DISCORD_GUILD_ID"),
         discord_role_id=_get(env, "DISCORD_ROLE_ID"),
-        default_duration_hours=duration,
+        discord_bot_token=_get(env, "DISCORD_BOT_TOKEN"),
+        discord_requests_channel_id=_get(env, "DISCORD_REQUESTS_CHANNEL_ID"),
+        twitch_client_id=_get(env, "TWITCH_CLIENT_ID"),
+        twitch_client_secret=_get(env, "TWITCH_CLIENT_SECRET"),
+        bot_setup_key=bot_setup_key,
+        extension_client_id=_get(env, "EXTENSION_CLIENT_ID"),
+        extension_secret=_get(env, "EXTENSION_SECRET"),
+        sheets_webhook_url=_get(env, "SHEETS_WEBHOOK_URL"),
+        sheets_webhook_secret=_get(env, "SHEETS_WEBHOOK_SECRET"),
+        request_cooldown_minutes=_int(env, "REQUEST_COOLDOWN_MINUTES", 10, 1, 240),
+        mod_session_days=_int(env, "MOD_SESSION_DAYS", 30, 1, 90),
+        default_duration_hours=_int(env, "DEFAULT_DURATION_HOURS", 4, 1, 24),
         org_name=_get(env, "ORG_NAME", "Fondation des Gardiens virtuels") or "",
         hours_text=_get(env, "HOURS_TEXT", "") or "",
         timezone=timezone,

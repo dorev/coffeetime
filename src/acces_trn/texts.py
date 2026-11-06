@@ -75,3 +75,22 @@ def chat_line(status: Status, message: str, url: str) -> str:
     if message:
         line += f" ({message})"
     return line[:CHAT_MAX]
+
+
+# --- Réponses aux mods (chuchotement, page /c/…, extension) ----------------------
+
+def request_result_text(outcome: str, status: Status, retry_after_minutes: int | None = None) -> str:
+    """Message de confirmation pour la personne (mod ou streamer) qui a fait la demande."""
+    if outcome == "envoyee":
+        if status is Status.BUSY:
+            return ("✅ Demande transmise aux TRN. L'équipe est occupée présentement : "
+                    "un·e TRN passera dès que possible.")
+        return "✅ Demande transmise aux TRN. Un·e TRN va passer dans ton chat dès que possible."
+    if outcome == "sans_trn":
+        return ("⚠️ Aucun·e TRN n'est disponible présentement. Ta demande est notée. "
+                "En cas d'urgence : 911 · détresse ou idées suicidaires : 988 (appel ou texto, 24/7).")
+    if outcome == "delai":
+        minutes = retry_after_minutes or 10
+        return (f"⏳ Une demande a déjà été faite pour cette chaîne. "
+                f"Attends {minutes} minute{'s' if minutes > 1 else ''} avant d'en faire une autre.")
+    return "Cette chaîne n'est pas encore inscrite auprès des TRN. Contacte la FGV pour l'ajouter."

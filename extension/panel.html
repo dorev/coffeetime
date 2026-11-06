@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="fr-CA">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="panel.css">
+  <!-- Script obligatoire fourni par Twitch -->
+  <script src="https://extension-files.twitch.tv/helper/v1/twitch-ext.min.js"></script>
+  <script src="config.js"></script>
+  <script src="panel.js" defer></script>
+</head>
+<body>
+  <main id="app" class="loading">
+    <p class="pill" id="status"><span class="dot"></span><span id="status-label">Chargement…</span></p>
+    <h1 id="headline">Travailleuses et travailleurs de rue numériques</h1>
+    <p id="team-message" class="note" hidden></p>
+    <p class="muted">Des intervenant·e·s disponibles pour parler, sans jugement et en toute confidentialité.</p>
+    <a id="help-link" class="cta" href="#" target="_blank" rel="noopener">Parler à un·e TRN</a>
+
+    <section id="mod-zone" hidden>
+      <h2>Réservé au streamer et aux mods</h2>
+      <p class="muted small">Les TRN reçoivent le nom de la chaîne, l'heure et ton message. Rien n'apparaît dans le chat.</p>
+      <label for="message">Message (facultatif)</label>
+      <textarea id="message" maxlength="300" rows="3"></textarea>
+      <button id="send" class="cta">Demander un·e TRN</button>
+      <p id="result" class="note" hidden role="status"></p>
+    </section>
+  </main>
+</body>
+</html>

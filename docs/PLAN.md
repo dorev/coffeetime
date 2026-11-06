@@ -1,143 +1,114 @@
 # Plan — Outil d'accès direct aux TRN
 
-> Réponse au document de requis « Projet – Outil d'accès direct aux TRN » (FGV, version de travail).
-> Option retenue : **A — aiguillage seulement**. Le service affiche la disponibilité et dirige vers
-> le système de tickets Discord existant ; il ne reçoit aucune demande lui-même.
+> Mis à jour après la rencontre avec la FGV. Principe : **le moins d'effort possible pour les TRN
+> et pour les streamers**. Les trois façons de faire une demande sont implémentées ; le pilote dira
+> lesquelles garder.
 
 Légende : ✅ fait dans ce dépôt · 🧪 à valider en conditions réelles · ⬜ à faire
 
 ---
 
-## 1. Ce qu'on livre
+## 1. Décisions de la rencontre
 
-### Livrable 1 — « Lien officiel » (sans serveur, en quelques jours)
-Répond à l'**étape 2** et à l'**option 1** du document.
-
-| Élément | État |
+| Question | Décision |
 |---|---|
-| Page statique : explication, bouton vers le Discord, heures habituelles, ressources d'urgence (`livrable1/index.html`) | ✅ |
-| Guide de mise en ligne gratuite + invitation Discord permanente (`livrable1/README.md`) | ✅ |
-| Adresse officielle, ex. `aide.gardiensvirtuels.org` | ⬜ FGV |
-| Commande `!trn` statique, texte à épingler, QR, image de panneau Twitch | ✅ textes · ⬜ image |
-
-### Livrable 2 — Service d'aiguillage (prototype pour le pilote)
-Répond aux **options 2, 3 et 4** et à l'**étape 4** du document.
-
-**Public**
-- ✅ Page d'accès avec statut en direct (🟢 / 🟡 / 🔴), message de l'équipe, bouton adapté au statut.
-- ✅ Ressources d'urgence, affichées **en premier** quand l'équipe est hors ligne.
-- ✅ Lien universel `/go` → Discord des TRN (compteur anonyme par provenance).
-
-**Diffuseurs** (intégration unique, mise à jour automatique)
-- ✅ `!trn` pour Nightbot, StreamElements, Fossabot via `/status.txt`.
-- ✅ Widget Web (`/widget`), incrustation OBS (`/widget?theme=overlay`), badge (`/badge.svg`), QR (`/qr.svg`).
-- ✅ Page `/trousse` qui génère tous les extraits pour une chaîne donnée.
-
-**TRN (privé)**
-- ✅ Connexion « Se connecter avec Discord » réservée au rôle TRN (ou mot de passe pour les essais).
-- ✅ Trois boutons de statut, message public facultatif, durée de validité.
-- ✅ Retour automatique à « hors ligne » à échéance (un « disponible » oublié est pire que rien).
-- ✅ Journal des changements (qui, quand) et statistiques anonymes sur 30 jours.
-
-**Exploitation**
-- ✅ Conteneur Docker + `docker-compose.yml`, configuration par `.env`, données dans un seul fichier SQLite.
-- ✅ Tests automatisés (35) : statut et échéance, compteurs, pages, intégrations, connexion, CSRF.
+| Comment un TRN indique son statut ? | Dans **Discord**, le plus simplement possible → panneau à 3 boutons |
+| Statistiques ? | Journal des événements dans un **Google Sheets** |
+| Infos d'une demande ? | **Chaîne + heure** (+ message facultatif, + pseudo du mod) |
+| Contact avec la personne ? | Géré par les TRN (pas à construire) |
+| Qui fait la demande ? | **Streamer et mods**, avec anti-spam : **10 minutes** par chaîne |
+| Aucun TRN disponible ? | La demande est **quand même enregistrée** ; le mod est prévenu |
+| Message facultatif ? | Va dans **Discord et dans le Google Sheets** |
+| Ajout des chaînes (pilote) ? | Par les TRN, **dans Discord** (`/chaine ajouter`) |
+| Commande publique pour les viewers ? | **Non** |
+| Compte Twitch du bot ? | Créé par les TRN (téléphone vérifié, pour les chuchotements) |
+| Réponse au mod (commande chat) | **Chuchotement seulement**, commande effacée. Jamais de message public, même si le quota est atteint : l'échec est enregistré |
 
 ---
 
-## 2. Correspondance avec les critères du document (§6)
+## 2. Ce qui est construit
 
-| Critère | Réponse |
-|---|---|
-| Simplicité pour les jeunes | Une page, un bouton, statut en couleur et en mots |
-| Nombre d'étapes | Voir l'annonce → clic → page TRN → clic → Discord (le ticket reste dans Discord) |
-| Intégration diffuseurs | Une ligne à coller dans le chatbot ; widget/OBS/QR prêts sur `/trousse` |
-| Twitch, Discord, Web | Chat Twitch (chatbot), Discord (lien épinglé), Web (page, widget, badge) |
-| Afficher la disponibilité | Oui, partout, mis à jour par les TRN |
-| Confidentialité | Aucune donnée sur le public : pas d'IP, pas de journal, compteurs agrégés par jour |
-| Sécurité des communications | HTTPS ; la conversation se fait dans Discord (inchangé) |
-| Coûts | Livrable 1 : 0 $ · Livrable 2 : 0 à ~7 $/mois (VPS) + domaine |
-| Maintenance | ~800 lignes Python, 3 dépendances principales, un conteneur |
-| Évolutivité | Le statut et les compteurs sont la base d'un futur portail (option 5) |
-| Contrôle FGV | Code et données chez la FGV, hébergement au choix |
-| Dépendance externe | Discord reste le canal d'intervention ; le point d'entrée, lui, appartient à la FGV |
+### Côté TRN (Discord) ✅ · 🧪
+- Panneau de statut épinglé : 🟢 Disponible / 🟡 Occupé·e / 🔴 Hors ligne, un clic. Retour automatique
+  à « hors ligne » après `DEFAULT_DURATION_HOURS`. Le panneau se met à jour seul (échéance, page de secours).
+- Salon des demandes : chaîne, heure, source, pseudo du mod, message ; bouton **Je m'en occupe**.
+  Mention du rôle TRN seulement quand l'équipe est en service.
+- `/chaine ajouter|retirer|liste` : inscription des chaînes ; le bot donne le lien `/c/<chaîne>` à remettre.
+
+### Côté streamers et mods — trois options ✅ · 🧪
+| | 1. Commande chat `!trn` | 2. Page `/c/<chaîne>` | 3. Extension Twitch |
+|---|---|---|---|
+| Discrétion | commande visible ~1 s puis effacée | totale | totale |
+| Vérification du rôle | badge du chat | API Twitch, **à chaque demande** | jeton signé par Twitch |
+| Réponse au mod | chuchotement (jamais public) | sur la page | dans le panneau |
+| Effort du streamer | `/mod NomDuBot` | coller un lien dans un panneau | installer l'extension (~5 clics) |
+| Pré-requis FGV | compte bot vérifié | application Twitch | extension en *hosted test* |
+
+Règles communes (`dispatch.py`) : chaîne inscrite, **10 minutes** entre deux demandes d'une chaîne
+(les demandes bloquées ne prolongent pas le délai), tout est enregistré.
+
+### Côté viewers ✅
+Signal public de disponibilité : page d'accès, widget, incrustation OBS, badge, panneau d'extension.
+Bouton « Parler à un·e TRN » vers le Discord des TRN.
+
+### Journal (Google Sheets) ✅ · 🧪
+Événements : `statut_change`, `demande_envoyee`, `demande_sans_trn`, `demande_bloquee_delai`,
+`demande_refusee`, `demande_prise_en_charge`, `chuchotement_echoue`, `suppression_message_echouee`,
+`chaine_ajoutee`, `chaine_retiree`, `bot_twitch_autorise`. Copie locale + renvoi automatique si la feuille
+est injoignable.
+
+### Qualité ✅
+80 tests automatisés (Twitch, Discord et Google Sheets simulés) : délai, enregistrement, revérification
+des mods, révocation, chiffrement des jetons, extension (rôles, jetons expirés, CORS), chuchotement échoué.
 
 ---
 
-## 3. Parcours
+## 3. Étapes
 
-**Personne qui cherche de l'aide** : voit `!trn`, le widget ou le QR → arrive sur la page →
-lit le statut → clique « Parler à un·e TRN » / « Laisser une demande » → serveur Discord des TRN →
-ouvre un ticket.
+### Étape 1 — Comptes et accès (FGV, ~1 h) ⬜
+- [ ] Application Discord + bot invité dans le serveur des TRN ; rôle TRN ; salon des demandes.
+- [ ] Application Twitch (redirection `<BASE_URL>/auth/twitch/callback`).
+- [ ] Compte Twitch du bot, téléphone vérifié.
+- [ ] Google Sheets + Apps Script (`integrations/google-sheets/`).
+- [ ] Hébergement : à décider (VPS, serveur FGV, Oracle Free) + domaine + HTTPS.
 
-**Diffuseur** : reçoit le lien `/trousse?src=sa_chaine` → copie la commande dans son chatbot,
-ajoute le widget OBS ou le QR → terminé.
+### Étape 2 — Mise en service (1 journée) ⬜
+- [ ] `.env` de production, `docker compose up -d`, Caddy.
+- [ ] `/bot/autoriser?cle=…` avec le compte du bot.
+- [ ] `/panneau-statut` dans Discord ; `/chaine ajouter` pour 2-3 chaînes test.
+- [ ] Extension : création dans la console, *hosted test* avec les chaînes du pilote (voir `docs/EXTENSION.md`).
 
-**TRN** : début de quart → `/admin` → « 🟢 Disponible » (4 h) → au besoin « 🟡 Occupée » →
-fin de quart « 🔴 Hors ligne » (sinon retour automatique à échéance).
-
----
-
-## 4. Étapes
-
-### Étape 1 — Cadrage avec la FGV ⬜
-- [ ] Définir **« disponible »** et **« occupée »** concrètement (ex. : occupée = tous les TRN en intervention).
-- [ ] Heures de présence et durée par défaut d'un statut.
-- [ ] Décrire le parcours actuel des tickets Discord : combien d'étapes après l'invitation ?
-- [ ] Valider les textes (`texts.py`) et les ressources d'urgence.
-- [ ] Choisir le nom de domaine et la personne responsable de l'hébergement.
-
-### Étape 2 — Livrable 1 en ligne ⬜ (1 à 3 jours)
-- [ ] Adapter et publier `livrable1/index.html`, brancher le domaine.
-- [ ] Invitation Discord permanente + *Onboarding* vers le salon des tickets.
-- [ ] Remettre la commande statique et le QR à 2 ou 3 diffuseurs.
-
-### Étape 3 — Livrable 2 : mise en service ✅ code · ⬜ déploiement (1 à 2 jours)
-- [ ] Application Discord OAuth (voir README), `.env` de production.
-- [ ] Hébergement (VPS canadien ou serveur FGV) + Caddy (HTTPS).
-- [ ] Faire pointer le domaine officiel vers le service.
-- [ ] 🧪 Tester la connexion Discord avec un compte TRN et un compte sans le rôle.
-
-### Étape 4 — Recette 🧪 (½ journée, avec 1 ou 2 TRN)
+### Étape 3 — Recette 🧪 (½ journée, avec 1-2 TRN et 1 streamer)
 | # | Vérification | Attendu |
 |---|---|---|
-| 1 | Page d'accès sur téléphone, en mode clair et sombre | Lisible, bouton évident |
-| 2 | TRN passe à 🟢 | Page, widget, badge, `!trn` changent en ≤ 1 min |
-| 3 | Laisser expirer le statut | Retour à 🔴 et ressources en premier |
-| 4 | `!trn` dans un vrai chat (Nightbot et StreamElements) | Une ligne, lien cliquable |
-| 5 | Widget dans OBS | Fond transparent, mise à jour seule |
-| 6 | Compte Discord sans le rôle TRN | Accès refusé |
-| 7 | Clic « Parler à un·e TRN » sans compte Discord | Noter le parcours réel (création de compte) |
+| 1 | Clic 🟢 dans Discord | Page, widget, extension passent au vert en ≤ 1 min ; ligne `statut_change` |
+| 2 | `!trn test` par un mod | Commande effacée, chuchotement reçu, demande dans Discord + Sheets |
+| 3 | `!trn` par un viewer | Rien ne se passe |
+| 4 | 2ᵉ demande < 10 min (n'importe quelle option) | « Attends X minutes » ; ligne `demande_bloquee_delai` |
+| 5 | Demande avec 🔴 | Publiée sans mention ; mod prévenu avec les ressources ; `demande_sans_trn` |
+| 6 | Page `/c/` : mod connecté, puis retiré des mods | 2ᵉ demande refusée immédiatement |
+| 7 | Extension : viewer vs mod | Le viewer voit le statut seulement ; le mod voit le formulaire |
+| 8 | Chuchotement bloqué (réglages du mod) | Pas de message public ; `chuchotement_echoue` dans le Sheets |
+| 9 | Couper Internet 2 min | Les lignes manquantes arrivent dans le Sheets au retour |
 
-### Étape 5 — Pilote ⬜ (2 à 4 semaines, 3 à 5 diffuseurs)
-Mesures (document §8, étape 5) : visites, clics, utilisations de `!trn` **par diffuseur** (tableau de
-l'espace TRN) ; nombre de tickets ouverts (côté Discord) ; retours des TRN et des diffuseurs.
+### Étape 4 — Pilote ⬜ (2-4 semaines, 3-5 chaînes)
+Mesurer, par option : nombre de demandes, demandes bloquées, échecs de chuchotement, délai de prise en
+charge (`demande_envoyee` → `demande_prise_en_charge`), retours des mods et des TRN.
+**Décision de fin de pilote : quelles options garder.**
 
-### Étape 6 — Déploiement au réseau ⬜
-Trousse finalisée (images de panneau, guide d'une page), annonce aux diffuseurs, maintenance.
-
----
-
-## 5. Confidentialité (Loi 25) et sécurité
-
-- **Public** : aucune donnée personnelle collectée ni stockée. Uvicorn ne journalise pas les accès ;
-  le proxy (Caddy) est configuré sans journal. Compteurs = (jour, type, provenance, nombre).
-- **TRN** : seuls le nom d'affichage et l'heure des changements de statut sont conservés (200 derniers).
-  Le jeton Discord n'est pas conservé ; la session expire après 12 h.
-- **Protections** : cookies signés (HttpOnly, Secure en HTTPS), jeton CSRF sur chaque formulaire,
-  blocage après 5 mots de passe erronés, en-têtes de sécurité (CSP, no-referrer), espace TRN non intégrable.
-- **Urgence** : le service n'est pas un service d'urgence ; les ressources 24/7 sont toujours visibles.
+### Étape 5 — Après le pilote ⬜
+- Si l'extension est retenue : soumission à la review Twitch (voir `docs/EXTENSION.md`).
+- Trousse d'intégration finale ; inscription des chaînes en libre-service si le réseau grandit.
 
 ---
 
-## 6. Limites connues et suites possibles
+## 4. Limites connues
 
-| Limite | Piste |
+| Limite | Mitigation |
 |---|---|
-| Il faut un compte Discord (13 ans et plus) pour parler à un TRN | Option B / portail (option 5) : formulaire ou clavardage Web — à évaluer après le pilote |
-| Le statut dépend des TRN qui le mettent à jour | Échéance automatique ; plus tard : lecture du nombre de tickets ouverts |
-| Les images dans Discord sont mises en cache | Pour Discord, utiliser le lien et le texte plutôt que le badge |
-| Une seule équipe, un seul statut | Plusieurs files (langues, régions) si le besoin apparaît |
-
-Pistes après le pilote : statut automatique selon l'horaire, rappel aux TRN si 🟢 depuis longtemps
-sans ticket, page en anglais, image PNG du badge pour Discord.
+| Commande chat visible ~1 s | Options 2 et 3, totalement discrètes |
+| Chuchotements : téléphone vérifié + quotas Twitch | Échecs enregistrés ; options 2 et 3 n'en dépendent pas |
+| Extension : approbation Twitch pour une diffusion large | Pilote en *hosted test*, sans approbation |
+| Extension : pseudo du mod seulement s'il partage son identité | Sinon « mod (identité non partagée) » ; la chaîne et l'heure suffisent |
+| Panneaux d'extension sur mobile | À vérifier pendant le pilote ; la page `/c/` fonctionne partout |
+| Statut oublié | Retour automatique à « hors ligne » |

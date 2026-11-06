@@ -72,3 +72,10 @@ body.widget { background: transparent; margin: 0; }
 .widget-btn { font-size: .95rem; }
 .widget-label { white-space: nowrap; }
 .hint { margin: 0; }
+.mod-zone { margin-top: 1.25rem; border-left-color: var(--accent); }
+.mod-zone h2 { margin-top: 0; }
+.note.ok { border-left: 4px solid var(--available); }
+.note.warn { border-left: 4px solid var(--busy); }
+.cta.secondary { background: #6441a5; color: #fff; }
+textarea { font: inherit; padding: .55rem .6rem; border: 1px solid var(--border); border-radius: 8px;
+           background: var(--card); color: var(--fg); resize: vertical; }

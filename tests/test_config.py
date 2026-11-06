@@ -2,7 +2,7 @@ import pytest
 
 from acces_trn.config import ConfigError, load_config
 
-from .conftest import BASE_ENV, DISCORD_ENV
+from .conftest import BASE_ENV, DISCORD_ENV, TWITCH_ENV
 
 
 def test_password_mode():
@@ -26,8 +26,20 @@ def test_discord_mode_redirect_uri():
         BASE_ENV | {"DEFAULT_DURATION_HOURS": "48"},
         BASE_ENV | {"TIMEZONE": "Mars/Olympus"},
         {k: v for k, v in DISCORD_ENV.items() if k != "DISCORD_ROLE_ID"},
+        BASE_ENV | {"TWITCH_CLIENT_ID": "x"},
+        BASE_ENV | {"EXTENSION_CLIENT_ID": "x", "EXTENSION_SECRET": "y"},
+        BASE_ENV | {"DISCORD_BOT_TOKEN": "t", "DISCORD_GUILD_ID": "1", "DISCORD_ROLE_ID": "2"},
+        TWITCH_ENV | {"BOT_SETUP_KEY": "court"},
+        BASE_ENV | {"REQUEST_COOLDOWN_MINUTES": "0"},
     ],
 )
 def test_invalid(env):
     with pytest.raises(ConfigError):
         load_config(env)
+
+
+def test_integrations_flags():
+    cfg = load_config(dict(TWITCH_ENV))
+    assert cfg.twitch_enabled and cfg.extension_enabled and not cfg.discord_bot_enabled and not cfg.sheets_enabled
+    assert cfg.request_cooldown_minutes == 10 and cfg.mod_session_days == 30
+    assert cfg.twitch_redirect_uri == "https://aide.example.org/auth/twitch/callback"

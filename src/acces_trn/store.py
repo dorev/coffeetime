@@ -1,7 +1,7 @@
-"""Stockage SQLite : statut courant, journal des changements, compteurs anonymes.
+"""Stockage SQLite : statut, chaînes inscrites, demandes, journal d'événements, compteurs.
 
-Aucune donnée sur les personnes qui demandent de l'aide n'est enregistrée :
-ni adresse IP, ni navigateur, ni identifiant. Seuls des compteurs par jour.
+Aucune donnée sur les viewers n'est enregistrée (ni IP, ni navigateur, ni identifiant).
+Une demande contient seulement : chaîne, heure, source, pseudo du mod, message facultatif.
 """
 
 from __future__ import annotations
@@ -29,6 +29,44 @@ CREATE TABLE IF NOT EXISTS status_log (
     status  TEXT NOT NULL,
     set_by  TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS channels (
+    login         TEXT PRIMARY KEY,
+    twitch_id     TEXT NOT NULL UNIQUE,
+    display_name  TEXT NOT NULL,
+    added_by      TEXT NOT NULL,
+    added_at      TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS requests (
+    id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+    created_at          TEXT NOT NULL,
+    channel             TEXT NOT NULL,
+    source              TEXT NOT NULL,     -- chat, page, extension
+    requested_by        TEXT NOT NULL,
+    message             TEXT NOT NULL DEFAULT '',
+    outcome             TEXT NOT NULL,     -- envoyee, sans_trn, delai
+    trn_status          TEXT NOT NULL,
+    claimed_by          TEXT,
+    claimed_at          TEXT,
+    discord_message_id  TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_requests_channel ON requests (channel, created_at);
+CREATE TABLE IF NOT EXISTS events (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    at          TEXT NOT NULL,
+    type        TEXT NOT NULL,
+    channel     TEXT NOT NULL DEFAULT '',
+    source      TEXT NOT NULL DEFAULT '',
+    actor       TEXT NOT NULL DEFAULT '',
+    message     TEXT NOT NULL DEFAULT '',
+    trn_status  TEXT NOT NULL DEFAULT '',
+    detail      TEXT NOT NULL DEFAULT '',
+    synced      INTEGER NOT NULL DEFAULT 0   -- envoyé au Google Sheets
+);
+CREATE INDEX IF NOT EXISTS idx_events_synced ON events (synced, id);
+CREATE TABLE IF NOT EXISTS secrets (
+    key    TEXT PRIMARY KEY,
+    value  TEXT NOT NULL                     -- chiffré par l'application
+);
 CREATE TABLE IF NOT EXISTS counters (
     day     TEXT NOT NULL,
     kind    TEXT NOT NULL,
@@ -46,6 +84,44 @@ class Status(str, Enum):
     AVAILABLE = "available"
     BUSY = "busy"
     OFFLINE = "offline"
+
+
+@dataclass(frozen=True)
+class Channel:
+    login: str
+    twitch_id: str
+    display_name: str
+
+
+@dataclass(frozen=True)
+class HelpRequest:
+    id: int
+    created_at: datetime
+    channel: str
+    source: str
+    requested_by: str
+    message: str
+    outcome: str
+    trn_status: str
+    claimed_by: str | None
+    claimed_at: datetime | None
+    discord_message_id: str | None
+
+
+def _request_from_row(row: sqlite3.Row) -> HelpRequest:
+    return HelpRequest(
+        id=row["id"],
+        created_at=datetime.fromisoformat(row["created_at"]),
+        channel=row["channel"],
+        source=row["source"],
+        requested_by=row["requested_by"],
+        message=row["message"],
+        outcome=row["outcome"],
+        trn_status=row["trn_status"],
+        claimed_by=row["claimed_by"],
+        claimed_at=datetime.fromisoformat(row["claimed_at"]) if row["claimed_at"] else None,
+        discord_message_id=row["discord_message_id"],
+    )
 
 
 @dataclass(frozen=True)
@@ -138,6 +214,147 @@ class Store:
             return self._conn.execute(
                 "SELECT at, status, set_by FROM status_log ORDER BY id DESC LIMIT ?", (limit,)
             ).fetchall()
+
+    # --- Chaînes inscrites -----------------------------------------------------
+
+    def add_channel(self, login: str, twitch_id: str, display_name: str, added_by: str) -> Channel:
+        login = login.lower()
+        with self._lock, self._conn:
+            self._conn.execute(
+                """INSERT INTO channels (login, twitch_id, display_name, added_by, added_at)
+                   VALUES (?, ?, ?, ?, ?)
+                   ON CONFLICT (login) DO UPDATE SET twitch_id = excluded.twitch_id,
+                       display_name = excluded.display_name""",
+                (login, twitch_id, display_name, added_by, _utcnow().isoformat()),
+            )
+        return Channel(login, twitch_id, display_name)
+
+    def remove_channel(self, login: str) -> bool:
+        with self._lock, self._conn:
+            cur = self._conn.execute("DELETE FROM channels WHERE login = ?", (login.lower(),))
+        return cur.rowcount > 0
+
+    def get_channel(self, login: str) -> Channel | None:
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT login, twitch_id, display_name FROM channels WHERE login = ?", (login.lower(),)
+            ).fetchone()
+        return Channel(*row) if row else None
+
+    def get_channel_by_id(self, twitch_id: str) -> Channel | None:
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT login, twitch_id, display_name FROM channels WHERE twitch_id = ?", (twitch_id,)
+            ).fetchone()
+        return Channel(*row) if row else None
+
+    def list_channels(self) -> list[Channel]:
+        with self._lock:
+            rows = self._conn.execute(
+                "SELECT login, twitch_id, display_name FROM channels ORDER BY login"
+            ).fetchall()
+        return [Channel(*r) for r in rows]
+
+    # --- Demandes des chaînes ----------------------------------------------------
+
+    def last_counted_request(self, channel: str) -> HelpRequest | None:
+        """Dernière demande qui compte pour le délai (les demandes bloquées ne comptent pas)."""
+        with self._lock:
+            row = self._conn.execute(
+                """SELECT * FROM requests WHERE channel = ? AND outcome != 'delai'
+                   ORDER BY id DESC LIMIT 1""",
+                (channel.lower(),),
+            ).fetchone()
+        return _request_from_row(row) if row else None
+
+    def add_request(
+        self,
+        *,
+        channel: str,
+        source: str,
+        requested_by: str,
+        message: str,
+        outcome: str,
+        trn_status: str,
+        now: datetime | None = None,
+    ) -> HelpRequest:
+        with self._lock, self._conn:
+            cur = self._conn.execute(
+                """INSERT INTO requests
+                   (created_at, channel, source, requested_by, message, outcome, trn_status)
+                   VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                ((now or _utcnow()).isoformat(), channel.lower(), source, requested_by,
+                 message, outcome, trn_status),
+            )
+        request = self.get_request(cur.lastrowid)
+        assert request is not None
+        return request
+
+    def get_request(self, request_id: int) -> HelpRequest | None:
+        with self._lock:
+            row = self._conn.execute("SELECT * FROM requests WHERE id = ?", (request_id,)).fetchone()
+        return _request_from_row(row) if row else None
+
+    def set_request_discord_message(self, request_id: int, message_id: str) -> None:
+        with self._lock, self._conn:
+            self._conn.execute(
+                "UPDATE requests SET discord_message_id = ? WHERE id = ?", (message_id, request_id)
+            )
+
+    def claim_request(self, request_id: int, trn: str, now: datetime | None = None) -> HelpRequest | None:
+        """Prise en charge ; None si déjà prise."""
+        with self._lock, self._conn:
+            cur = self._conn.execute(
+                """UPDATE requests SET claimed_by = ?, claimed_at = ?
+                   WHERE id = ? AND claimed_by IS NULL""",
+                (trn, (now or _utcnow()).isoformat(), request_id),
+            )
+        return self.get_request(request_id) if cur.rowcount else None
+
+    # --- Journal d'événements (copie locale de ce qui va au Google Sheets) -----
+
+    def add_event(self, event: dict) -> int:
+        with self._lock, self._conn:
+            cur = self._conn.execute(
+                """INSERT INTO events (at, type, channel, source, actor, message, trn_status, detail)
+                   VALUES (:at, :type, :channel, :source, :actor, :message, :trn_status, :detail)""",
+                event,
+            )
+        return cur.lastrowid
+
+    def unsynced_events(self, limit: int = 50) -> list[dict]:
+        with self._lock:
+            rows = self._conn.execute(
+                "SELECT * FROM events WHERE synced = 0 ORDER BY id LIMIT ?", (limit,)
+            ).fetchall()
+        return [dict(r) for r in rows]
+
+    def mark_events_synced(self, ids: list[int]) -> None:
+        if not ids:
+            return
+        with self._lock, self._conn:
+            self._conn.executemany("UPDATE events SET synced = 1 WHERE id = ?", [(i,) for i in ids])
+
+    def recent_events(self, limit: int = 20) -> list[sqlite3.Row]:
+        with self._lock:
+            return self._conn.execute(
+                "SELECT * FROM events ORDER BY id DESC LIMIT ?", (limit,)
+            ).fetchall()
+
+    # --- Secrets (jetons chiffrés) ------------------------------------------------
+
+    def set_secret(self, key: str, value: str) -> None:
+        with self._lock, self._conn:
+            self._conn.execute(
+                "INSERT INTO secrets (key, value) VALUES (?, ?) "
+                "ON CONFLICT (key) DO UPDATE SET value = excluded.value",
+                (key, value),
+            )
+
+    def get_secret(self, key: str) -> str | None:
+        with self._lock:
+            row = self._conn.execute("SELECT value FROM secrets WHERE key = ?", (key,)).fetchone()
+        return row["value"] if row else None
 
     # --- Compteurs anonymes ---------------------------------------------------
 

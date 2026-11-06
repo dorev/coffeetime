@@ -1,61 +1,102 @@
 # Accès TRN — service d'aiguillage
 
-Un petit service Web qui sert de **porte d'entrée unique** vers les Travailleuses et travailleurs
-de rue numériques (TRN) de la Fondation des Gardiens virtuels.
+Service de la Fondation des Gardiens virtuels pour relier les communautés Twitch partenaires aux
+Travailleuses et travailleurs de rue numériques (TRN).
 
-- **Côté public** : une page qui affiche si l'équipe est 🟢 disponible, 🟡 occupée ou 🔴 hors ligne,
-  avec un gros bouton « Parler à un·e TRN » qui mène au système de tickets Discord des TRN,
-  et les ressources d'urgence.
-- **Côté diffuseurs** : commande `!trn` pour Nightbot / StreamElements / Fossabot, widget Web,
-  incrustation OBS, badge, code QR — tout se met à jour seul. Page `/trousse` prête à partager.
-- **Côté privé (TRN)** : connexion avec Discord (rôle TRN), trois boutons pour changer le statut,
-  retour automatique à « hors ligne » après X heures, statistiques anonymes.
+- **Les TRN** changent leur statut (🟢 disponible / 🟡 occupé·e / 🔴 absent·e) d'un clic dans **Discord**,
+  et reçoivent les demandes des chaînes dans un salon Discord, avec un bouton « Je m'en occupe ».
+- **Les streamers et leurs mods** demandent un·e TRN de trois façons (on garde celles qui marchent après le pilote) :
+  1. **Commande chat** `!trn [message]` : le bot efface la commande et répond par chuchotement ;
+  2. **Page Web** `/c/<chaîne>` : connexion Twitch, statut de mod vérifié à chaque demande ;
+  3. **Extension Twitch** : panneau sous le stream, le rôle de mod est fourni par Twitch.
+- **Les viewers** voient si des TRN sont disponibles (page, widget, incrustation OBS, badge, panneau d'extension)
+  et peuvent eux-mêmes rejoindre les TRN.
+- **Tout est enregistré** dans un Google Sheets : statuts, demandes, demandes bloquées (délai de 10 minutes),
+  demandes sans TRN disponible, prises en charge, chuchotements échoués.
 
-Le service **ne recueille aucun renseignement personnel** sur les gens qui cherchent de l'aide
-(pas d'IP, pas de journal de visites) et **ne remplace pas** les tickets Discord : il y amène les gens.
+📋 Plan : [`docs/PLAN.md`](docs/PLAN.md) · 🧩 Extension : [`docs/EXTENSION.md`](docs/EXTENSION.md) ·
+📊 Google Sheets : [`integrations/google-sheets/`](integrations/google-sheets/) · 🚀 Version sans serveur : [`livrable1/`](livrable1/)
 
-📋 Plan complet : [`docs/PLAN.md`](docs/PLAN.md) · 🚀 Version sans serveur : [`livrable1/`](livrable1/)
+## Ce que reçoivent les TRN
+
+Dans le salon Discord des demandes :
+
+> **📣 Demande de la chaîne machaine** — Heure : 21 h 42 · Via : page Web · lea_mod
+> Message : « un viewer parle de se faire du mal » — [Je m'en occupe]
+
+Le rôle TRN est mentionné seulement si l'équipe est en service. Quand personne n'est en service,
+la demande est publiée sans mention, enregistrée, et le mod est prévenu avec les ressources d'urgence.
 
 ## Adresses du service
 
 | Adresse | Pour qui | Rôle |
 |---|---|---|
-| `/` | Public | Page d'accès (statut, bouton, ressources) |
-| `/go` | Public | Redirige vers le Discord des TRN (compte les clics) |
-| `/status.txt` | Chatbots Twitch | Une ligne de texte selon le statut |
-| `/status.json` | Sites Web | Statut en JSON (CORS ouvert) |
-| `/widget` | Sites Web, OBS | Bouton intégrable (`?theme=overlay` pour OBS) |
-| `/badge.svg`, `/qr.svg` | Diffuseurs | Badge de statut, code QR |
-| `/trousse` | Diffuseurs | Trousse d'intégration personnalisée (`?src=ma_chaine`) |
-| `/admin` | TRN | Espace privé : changer le statut, statistiques |
-
-Le paramètre `?src=nom_de_chaine` sur n'importe quelle adresse publique permet de compter
-les utilisations par diffuseur, sans aucune donnée personnelle.
+| `/` | Viewers | Page d'accès (statut, bouton vers les TRN, ressources) |
+| `/c/<chaîne>` | Streamer, mods (et viewers) | Information + demande discrète réservée aux mods |
+| `/status.json`, `/widget`, `/badge.svg`, `/qr.svg` | Tout le monde | Signal public de disponibilité |
+| `/trousse?src=<chaîne>` | Streamers | Extraits prêts à copier (widget, OBS, badge, QR) |
+| `/ext/info`, `/ext/demande` | Extension Twitch | Backend du panneau (jeton Twitch vérifié) |
+| `/bot/autoriser?cle=…` | FGV (une fois) | Autoriser le compte Twitch du bot |
+| `/admin` | TRN | Page de secours pour le statut et les statistiques |
 
 ## Démarrage rapide (local)
-
-Prérequis : Python 3.11+.
 
 ```bash
 python -m venv .venv
 source .venv/bin/activate          # Windows : .venv\Scripts\activate
 pip install -e ".[dev]"
-cp .env.example .env               # puis remplir : SECRET_KEY, DESTINATION_URL, ADMIN_PASSWORD
+cp .env.example .env               # remplir au minimum SECRET_KEY, DESTINATION_URL, ADMIN_PASSWORD
 pytest
-python -m acces_trn                # → http://127.0.0.1:8000  (espace TRN : /admin)
+python -m acces_trn                # → http://127.0.0.1:8000
 ```
 
-Pour essayer sans Discord, garde `AUTH_MODE=password`.
+Sans les variables Discord/Twitch, seules les pages publiques et `/admin` fonctionnent.
+Les connexions Twitch exigent une adresse joignable par Twitch : en local, `http://localhost:8000`
+est accepté comme adresse de redirection.
+
+## Mise en place des intégrations
+
+### 1. Discord (serveur des TRN)
+1. <https://discord.com/developers/applications> → *New Application* → onglet **Bot** → *Reset Token* → `DISCORD_BOT_TOKEN`.
+   Aucun *Privileged Gateway Intent* n'est nécessaire.
+2. **OAuth2 → URL Generator** : portées `bot` + `applications.commands` ; permissions *View Channels,
+   Send Messages, Embed Links, Read Message History, Mention Everyone* (pour mentionner le rôle TRN).
+   Ouvrir l'URL pour inviter le bot.
+3. Identifiants (Mode développeur → clic droit → *Copier l'identifiant*) : serveur → `DISCORD_GUILD_ID`,
+   rôle TRN → `DISCORD_ROLE_ID`, salon des demandes → `DISCORD_REQUESTS_CHANNEL_ID`.
+4. Dans un salon privé des TRN : `/panneau-statut`, puis épingler le message.
+5. Inscrire les chaînes du pilote : `/chaine ajouter nom`. Le bot répond avec le lien `/c/<chaîne>` à remettre.
+
+Commandes : `/panneau-statut`, `/statut`, `/chaine ajouter|retirer|liste` (réservées au rôle TRN).
+
+### 2. Twitch (connexion des mods + bot de chat)
+1. <https://dev.twitch.tv/console/apps> → *Register Your Application* :
+   redirection `<BASE_URL>/auth/twitch/callback`, catégorie *Chat Bot*, client *Confidential*.
+   → `TWITCH_CLIENT_ID`, `TWITCH_CLIENT_SECRET`.
+2. **Compte du bot** (créé par les TRN) : un compte Twitch dédié, **avec numéro de téléphone vérifié**
+   (obligatoire pour les chuchotements).
+3. Choisir une `BOT_SETUP_KEY`, redémarrer, puis ouvrir `<BASE_URL>/bot/autoriser?cle=<BOT_SETUP_KEY>`
+   et **se connecter avec le compte du bot**. Les jetons sont chiffrés dans la base.
+4. Chaque streamer tape une fois `/mod NomDuBot` dans son chat (pour que le bot puisse effacer la commande).
+
+Le bot ne parle **jamais** dans le chat : il efface `!trn` et chuchote la réponse. Si le chuchotement
+échoue (quota Twitch, réglages de la personne), l'échec est enregistré dans le Google Sheets.
+
+### 3. Extension Twitch
+Voir [`docs/EXTENSION.md`](docs/EXTENSION.md) (création, pilote sans approbation, approbation, installation par le streamer).
+
+### 4. Google Sheets
+Voir [`integrations/google-sheets/README.md`](integrations/google-sheets/README.md) (Apps Script, 5 minutes).
 
 ## Déploiement (Docker)
 
 ```bash
-cp .env.example .env               # BASE_URL=https://aide.exemple.org, AUTH_MODE=discord, etc.
+cp .env.example .env               # BASE_URL=https://aide.exemple.org, etc.
 docker compose up -d
 ```
 
-Le conteneur écoute sur `127.0.0.1:8000` ; il faut un proxy HTTPS devant. Le plus simple est
-[Caddy](https://caddyserver.com/) (certificat automatique) :
+Le conteneur écoute sur `127.0.0.1:8000` ; il faut un proxy HTTPS devant, par exemple
+[Caddy](https://caddyserver.com/) :
 
 ```
 aide.exemple.org {
@@ -66,38 +107,34 @@ aide.exemple.org {
 }
 ```
 
-Les données (statut, compteurs) sont dans `./data/acces_trn.sqlite3` — un seul fichier à sauvegarder.
-N'importe quel hébergeur de conteneurs fonctionne aussi (VPS, Oracle Cloud Free, serveur de la FGV).
+Données : `./data/acces_trn.sqlite3` (statut, chaînes, demandes, journal, jetons chiffrés) — à sauvegarder.
 
-## Connexion des TRN avec Discord
+## Confidentialité et sécurité
 
-1. <https://discord.com/developers/applications> → *New Application* (ex. « Accès TRN »).
-2. **OAuth2** → copier *Client ID* et *Client Secret* dans `.env` ;
-   ajouter le *Redirect* `https://aide.exemple.org/admin/callback` (= `BASE_URL` + `/admin/callback`).
-3. Dans Discord (Mode développeur activé) : clic droit sur le serveur des TRN → *Copier l'identifiant*
-   → `DISCORD_GUILD_ID` ; Paramètres du serveur → Rôles → clic droit sur le rôle TRN → `DISCORD_ROLE_ID`.
-4. `AUTH_MODE=discord`. Aucun bot à inviter : le service lit seulement, au moment de la connexion,
-   si la personne a le rôle. Retirer le rôle retire l'accès.
-
-## Personnaliser
-
-- **Textes et ressources d'urgence** : `src/acces_trn/texts.py` (à faire valider par la FGV).
-- **Mise en page** : `src/acces_trn/templates/` (HTML) et `src/acces_trn/static/style.css`.
+- Viewers : aucune donnée collectée (ni IP ni journal des visites ; compteurs agrégés par jour).
+- Demande : chaîne, heure, source, pseudo du mod, message facultatif (Discord + Google Sheets).
+- Mods (page Web) : le cookie chiffré garde la connexion 30 jours, mais **le statut de mod est
+  revérifié auprès de Twitch à chaque demande** : une personne retirée de la modération perd l'accès aussitôt.
+- Jetons Twitch chiffrés (cookie des mods, base pour le bot). Jeton CSRF sur tous les formulaires.
+- Extension : jeton JWT signé par Twitch vérifié par le serveur ; CORS limité à l'origine de l'extension.
 
 ## Structure
 
 ```
 src/acces_trn/
-  app.py         routes publiques, intégrations, espace TRN
-  store.py       SQLite : statut, journal des changements, compteurs anonymes
-  auth.py        connexion Discord (rôle TRN) ou mot de passe
-  texts.py       textes publics et ressources d'urgence
-  config.py      lecture du .env
-  templates/     pages HTML
-  static/        CSS, script du widget
-tests/           tests pytest
-livrable1/       page statique « lien officiel » (sans serveur)
-docs/PLAN.md     plan de développement
+  app.py           routes Web : public, page /c/, connexion Twitch, extension, /admin
+  dispatch.py      traitement d'une demande (délai, journal, Discord) — commun aux 3 options
+  discord_bot.py   bot Discord des TRN (statut, demandes, chaînes)
+  twitch_bot.py    bot de chat Twitch (!trn, effacement, chuchotement)
+  twitch_api.py    API Twitch pour le Web (connexion, vérification des mods)
+  modauth.py       cookie chiffré des mods, revérification à chaque demande
+  extension.py     vérification des jetons de l'extension
+  events.py        journal d'événements + envoi au Google Sheets
+  store.py         SQLite
+  texts.py         textes publics et ressources d'urgence (à valider par la FGV)
+extension/         panneau de l'extension Twitch (à téléverser chez Twitch)
+integrations/      script Google Apps Script
+tests/             tests pytest (Twitch, Discord et Google Sheets simulés)
 ```
 
 > ⚠️ Ce service n'est **pas** un service d'urgence. Les ressources affichées (911, 988, 1 866 APPELLE,
