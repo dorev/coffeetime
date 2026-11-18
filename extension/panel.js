@@ -8,7 +8,9 @@
 
   function api(path, options) {
     options = options || {};
-    options.headers = Object.assign({ Authorization: "Bearer " + auth.token }, options.headers || {});
+    // « ngrok-skip-browser-warning » : évite la page d'avertissement de ngrok pendant les tests (sans effet ailleurs).
+    options.headers = Object.assign(
+      { Authorization: "Bearer " + auth.token, "ngrok-skip-browser-warning": "1" }, options.headers || {});
     return fetch(base + path, options).then(function (r) { return r.json(); });
   }
 

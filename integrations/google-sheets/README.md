@@ -32,7 +32,7 @@ Un onglet « Événements » est créé automatiquement à la première ligne re
 | Horodatage (UTC) | 2026-11-06T02:41:07+00:00 |
 | Événement | `demande_envoyee`, `demande_sans_trn`, `demande_bloquee_delai`, `demande_refusee`, `demande_prise_en_charge`, `statut_change`, `chuchotement_echoue`, `suppression_message_echouee`, `chaine_ajoutee`, `chaine_retiree`, `bot_twitch_autorise` |
 | Chaîne | machaine |
-| Source | `chat` (commande !trn), `page` (page /c/…), `extension`, `discord`, `web` |
+| Source | `chat` (commande !trn), `extension`, `discord`, `web` |
 | Personne | pseudo du mod, ou nom du TRN |
 | Message | message facultatif du mod |
 | Statut TRN | `available`, `busy`, `offline` au moment de l'événement |

@@ -5,23 +5,22 @@ Travailleuses et travailleurs de rue numériques (TRN).
 
 - **Les TRN** changent leur statut (🟢 disponible / 🟡 occupé·e / 🔴 absent·e) d'un clic dans **Discord**,
   et reçoivent les demandes des chaînes dans un salon Discord, avec un bouton « Je m'en occupe ».
-- **Les streamers et leurs mods** demandent un·e TRN de trois façons (on garde celles qui marchent après le pilote) :
+- **Les streamers et leurs mods** demandent un·e TRN de deux façons :
   1. **Commande chat** `!trn [message]` : le bot efface la commande et répond par chuchotement ;
-  2. **Page Web** `/c/<chaîne>` : connexion Twitch, statut de mod vérifié à chaque demande ;
-  3. **Extension Twitch** : panneau sous le stream, le rôle de mod est fourni par Twitch.
+  2. **Extension Twitch** : panneau sous le stream, le rôle de mod est fourni par Twitch.
 - **Les viewers** voient si des TRN sont disponibles (page, widget, incrustation OBS, badge, panneau d'extension)
   et peuvent eux-mêmes rejoindre les TRN.
 - **Tout est enregistré** dans un Google Sheets : statuts, demandes, demandes bloquées (délai de 10 minutes),
   demandes sans TRN disponible, prises en charge, chuchotements échoués.
 
-📋 Plan : [`docs/PLAN.md`](docs/PLAN.md) · 🧩 Extension : [`docs/EXTENSION.md`](docs/EXTENSION.md) ·
+📋 Plan : [`docs/PLAN.md`](docs/PLAN.md) · 🧪 Test manuel : [`docs/TEST_MANUEL.md`](docs/TEST_MANUEL.md) · 🧩 Extension : [`docs/EXTENSION.md`](docs/EXTENSION.md) ·
 📊 Google Sheets : [`integrations/google-sheets/`](integrations/google-sheets/) · 🚀 Version sans serveur : [`livrable1/`](livrable1/)
 
 ## Ce que reçoivent les TRN
 
 Dans le salon Discord des demandes :
 
-> **📣 Demande de la chaîne machaine** — Heure : 21 h 42 · Via : page Web · lea_mod
+> **📣 Demande de la chaîne machaine** — Heure : 21 h 42 · Via : commande !trn · lea_mod
 > Message : « un viewer parle de se faire du mal » — [Je m'en occupe]
 
 Le rôle TRN est mentionné seulement si l'équipe est en service. Quand personne n'est en service,
@@ -32,7 +31,6 @@ la demande est publiée sans mention, enregistrée, et le mod est prévenu avec 
 | Adresse | Pour qui | Rôle |
 |---|---|---|
 | `/` | Viewers | Page d'accès (statut, bouton vers les TRN, ressources) |
-| `/c/<chaîne>` | Streamer, mods (et viewers) | Information + demande discrète réservée aux mods |
 | `/status.json`, `/widget`, `/badge.svg`, `/qr.svg` | Tout le monde | Signal public de disponibilité |
 | `/trousse?src=<chaîne>` | Streamers | Extraits prêts à copier (widget, OBS, badge, QR) |
 | `/ext/info`, `/ext/demande` | Extension Twitch | Backend du panneau (jeton Twitch vérifié) |
@@ -51,8 +49,7 @@ python -m acces_trn                # → http://127.0.0.1:8000
 ```
 
 Sans les variables Discord/Twitch, seules les pages publiques et `/admin` fonctionnent.
-Les connexions Twitch exigent une adresse joignable par Twitch : en local, `http://localhost:8000`
-est accepté comme adresse de redirection.
+Pour un test complet sur ton ordinateur, voir [`docs/TEST_MANUEL.md`](docs/TEST_MANUEL.md).
 
 ## Mise en place des intégrations
 
@@ -65,11 +62,11 @@ est accepté comme adresse de redirection.
 3. Identifiants (Mode développeur → clic droit → *Copier l'identifiant*) : serveur → `DISCORD_GUILD_ID`,
    rôle TRN → `DISCORD_ROLE_ID`, salon des demandes → `DISCORD_REQUESTS_CHANNEL_ID`.
 4. Dans un salon privé des TRN : `/panneau-statut`, puis épingler le message.
-5. Inscrire les chaînes du pilote : `/chaine ajouter nom`. Le bot répond avec le lien `/c/<chaîne>` à remettre.
+5. Inscrire les chaînes du pilote : `/chaine ajouter nom`.
 
 Commandes : `/panneau-statut`, `/statut`, `/chaine ajouter|retirer|liste` (réservées au rôle TRN).
 
-### 2. Twitch (connexion des mods + bot de chat)
+### 2. Twitch (bot de chat)
 1. <https://dev.twitch.tv/console/apps> → *Register Your Application* :
    redirection `<BASE_URL>/auth/twitch/callback`, catégorie *Chat Bot*, client *Confidential*.
    → `TWITCH_CLIENT_ID`, `TWITCH_CLIENT_SECRET`.
@@ -113,21 +110,19 @@ Données : `./data/acces_trn.sqlite3` (statut, chaînes, demandes, journal, jeto
 
 - Viewers : aucune donnée collectée (ni IP ni journal des visites ; compteurs agrégés par jour).
 - Demande : chaîne, heure, source, pseudo du mod, message facultatif (Discord + Google Sheets).
-- Mods (page Web) : le cookie chiffré garde la connexion 30 jours, mais **le statut de mod est
-  revérifié auprès de Twitch à chaque demande** : une personne retirée de la modération perd l'accès aussitôt.
-- Jetons Twitch chiffrés (cookie des mods, base pour le bot). Jeton CSRF sur tous les formulaires.
+- Rôle vérifié par Twitch à chaque demande : badge du chat (commande) ou jeton signé (extension).
+- Jetons du bot Twitch chiffrés dans la base. Jeton CSRF sur tous les formulaires.
 - Extension : jeton JWT signé par Twitch vérifié par le serveur ; CORS limité à l'origine de l'extension.
 
 ## Structure
 
 ```
 src/acces_trn/
-  app.py           routes Web : public, page /c/, connexion Twitch, extension, /admin
-  dispatch.py      traitement d'une demande (délai, journal, Discord) — commun aux 3 options
+  app.py           routes Web : public, autorisation du bot, extension, /admin
+  dispatch.py      traitement d'une demande (délai, journal, Discord) — commun aux 2 options
   discord_bot.py   bot Discord des TRN (statut, demandes, chaînes)
   twitch_bot.py    bot de chat Twitch (!trn, effacement, chuchotement)
-  twitch_api.py    API Twitch pour le Web (connexion, vérification des mods)
-  modauth.py       cookie chiffré des mods, revérification à chaque demande
+  twitch_api.py    API Twitch pour le Web (autorisation du bot, recherche de chaînes)
   extension.py     vérification des jetons de l'extension
   events.py        journal d'événements + envoi au Google Sheets
   store.py         SQLite

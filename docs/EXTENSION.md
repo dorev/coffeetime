@@ -1,4 +1,4 @@
-# Extension Twitch « Accès TRN » (option 3)
+# Extension Twitch « Accès TRN » (option 2)
 
 Un panneau interactif sous le stream :
 - **tout le monde** voit le statut des TRN en direct (🟢 / 🟡 / 🔴) et un bouton « Parler à un·e TRN » ;
@@ -36,7 +36,7 @@ Nécessaire seulement pour que **n'importe quel** streamer puisse l'installer (h
 - Attention : après l'approbation, modifier la liste d'accès oblige à resoumettre.
 
 **Recommandation** : faire tout le pilote en *hosted test* (liste de streamers), et soumettre à la review
-seulement si l'option 3 est retenue.
+seulement si l'extension est retenue après le pilote.
 
 ## Côté streamer : installer le panneau (environ 5 clics)
 

@@ -30,9 +30,8 @@ from .config import Config
 from .dispatch import RequestService
 from .events import EventLog
 from .extension import ExtensionAuthError, ExtensionVerifier
-from .modauth import COOKIE_NAME, ModAuth
 from .store import Status, Store, clean_source
-from .twitch_api import BOT_SCOPES, MOD_SCOPES, TwitchClient, TwitchError
+from .twitch_api import BOT_SCOPES, TwitchClient, TwitchError
 
 log = logging.getLogger(__name__)
 HERE = Path(__file__).parent
@@ -54,7 +53,6 @@ def create_app(
     service = RequestService(store, events, config.request_cooldown_minutes)
     if twitch is None and config.twitch_enabled:
         twitch = TwitchClient(config.twitch_client_id or "", config.twitch_client_secret or "")
-    modauth = ModAuth(twitch, config.secret_key, config.mod_session_days) if twitch else None
     extension = (
         ExtensionVerifier(config.extension_client_id or "", config.extension_secret or "")
         if config.extension_enabled else None
@@ -100,7 +98,6 @@ def create_app(
     app.state.events = events
     app.state.service = service
     app.state.twitch = twitch
-    app.state.modauth = modauth
     app.state.chat_bot = chat_bot
     app.state.discord = DiscordOAuth(config) if config.auth_mode == "discord" else None
     app.state.password = (
@@ -128,7 +125,7 @@ def create_app(
             "base-uri 'none'; form-action 'self' https://discord.com; "
             f"frame-ancestors {'*' if embeddable else 'none'}"
         )
-        if path.startswith(("/admin", "/c/", "/auth/", "/bot/", "/ext/")):
+        if path.startswith(("/admin", "/auth/", "/bot/", "/ext/")):
             response.headers["Cache-Control"] = "no-store"
         return response
 
@@ -332,93 +329,19 @@ def create_app(
         request.session["staff"] = {"id": user_id, "name": name}
         request.session["csrf"] = new_token()
 
-    # ------------------------------------------------------- option 2 : page de la chaîne
-
-    def channel_render(request: Request, login: str, ctx: dict, status_code: int = 200,
-                       cookie: str | None = None):
-        response = templates.TemplateResponse(request, "channel.html", ctx, status_code=status_code)
-        if cookie is not None:
-            set_mod_cookie(response, cookie)
-        return response
-
-    def set_mod_cookie(response: Response, value: str) -> None:
-        response.set_cookie(
-            COOKIE_NAME, value, max_age=config.mod_session_days * 86400, httponly=True,
-            secure=config.secure_cookies, samesite="lax", path="/",
-        )
-
-    async def channel_context(request: Request, login: str) -> tuple[dict, str | None, object]:
-        """Contexte de la page /c/<login>, avec vérification EN DIRECT du statut de mod."""
-        channel = store.get_channel(login)
-        ctx = status_context(login if channel else None)
-        ctx.update(channel=channel, login=clean_source(login), csrf=csrf_token(request),
-                   mod_state="anonymous", mod_user=None, result=None, twitch_enabled=modauth is not None)
-        new_cookie, check = None, None
-        if channel is None:
-            ctx["mod_state"] = "unknown_channel"
-        elif modauth is not None and request.cookies.get(COOKIE_NAME):
-            try:
-                check = await modauth.check(request.cookies.get(COOKIE_NAME), channel)
-            except TwitchError:
-                log.exception("Vérification Twitch impossible")
-                ctx["mod_state"] = "twitch_error"
-            else:
-                if check is None:
-                    ctx["mod_state"] = "expired"
-                else:
-                    ctx["mod_user"] = check.user
-                    ctx["mod_state"] = "mod" if check.is_mod else "not_mod"
-                    new_cookie = check.cookie_value
-        return ctx, new_cookie, check
-
-    @app.get("/c/{login}", response_class=HTMLResponse)
-    async def channel_page(request: Request, login: str):
-        ctx, cookie, _ = await channel_context(request, login)
-        if ctx["channel"] is not None:
-            store.count("page_chaine", login)
-        return channel_render(request, login, ctx, cookie=cookie)
-
-    @app.post("/c/{login}/demande", response_class=HTMLResponse)
-    async def channel_request(request: Request, login: str, csrf: str = Form(""), message: str = Form("")):
-        ctx, cookie, check = await channel_context(request, login)
-        if not tokens_match(request.session.get("csrf"), csrf):
-            ctx["error"] = "Le formulaire a expiré. Recharge la page et réessaie."
-            return channel_render(request, login, ctx, 400, cookie)
-        if ctx["mod_state"] != "mod" or check is None:
-            if ctx["channel"] is not None and check is not None:
-                events.record(ev.DEMANDE_REFUSEE, channel=ctx["channel"].login, source="page",
-                              actor=check.user.login, detail="pas modérateur·rice de la chaîne")
-            ctx["error"] = "Seuls le streamer et les mods de cette chaîne peuvent faire une demande."
-            return channel_render(request, login, ctx, 403, cookie)
-        result = await service.submit(ctx["channel"].login, source="page",
-                                      requested_by=check.user.login, message=message)
-        ctx["result"] = texts.request_result_text(result.outcome.value, result.trn_status,
-                                                  result.retry_after_minutes)
-        ctx["result_ok"] = result.outcome.value == "envoyee"
-        return channel_render(request, login, ctx, cookie=cookie)
-
-    # ------------------------------------------------------- connexion Twitch (mods, bot)
-
-    def twitch_redirect(request: Request, purpose: str, scopes: tuple[str, ...], next_url: str,
-                        force_verify: bool = False):
-        state = new_token()
-        request.session["twitch_oauth"] = {"state": state, "purpose": purpose, "next": next_url}
-        return RedirectResponse(
-            twitch.authorize_url(config.twitch_redirect_uri, scopes, state, force_verify),  # type: ignore[union-attr]
-            status_code=303,
-        )
-
-    @app.get("/auth/twitch/login")
-    async def twitch_login(request: Request, chaine: str = ""):
-        if twitch is None:
-            return PlainTextResponse("Connexion Twitch non configurée.", status_code=404)
-        return twitch_redirect(request, "mod", MOD_SCOPES, f"/c/{clean_source(chaine)}")
+    # ------------------------------------------------------- autorisation du compte bot Twitch
 
     @app.get("/bot/autoriser")
     async def bot_authorize(request: Request, cle: str = ""):
+        """Une seule fois : se connecter avec le compte Twitch du bot (voir README)."""
         if twitch is None or not config.bot_setup_key or not hmac.compare_digest(cle, config.bot_setup_key):
             return PlainTextResponse("Introuvable.", status_code=404)
-        return twitch_redirect(request, "bot", BOT_SCOPES, "/", force_verify=True)
+        state = new_token()
+        request.session["twitch_oauth"] = {"state": state}
+        return RedirectResponse(
+            twitch.authorize_url(config.twitch_redirect_uri, BOT_SCOPES, state, force_verify=True),
+            status_code=303,
+        )
 
     @app.get("/auth/twitch/callback")
     async def twitch_callback(request: Request, code: str = "", state: str = "", error: str = ""):
@@ -432,35 +355,24 @@ def create_app(
         except TwitchError:
             log.exception("Échange de code Twitch")
             return message_page(request, "Erreur Twitch", "Twitch n'a pas répondu correctement. Réessaie.", 502)
-        if pending.get("purpose") == "bot":
-            await chat_bot.authorize(tokens, user.login)  # type: ignore[union-attr]
-            return message_page(
-                request, "Bot Twitch autorisé",
-                f"Le bot est maintenant connecté avec le compte « {user.login} ». "
-                f"Il écoute {len(store.list_channels())} chaîne(s) inscrite(s). "
-                f"Chaque streamer doit taper /mod {user.login} dans son chat.",
-            )
-        response = RedirectResponse(pending.get("next") or "/", status_code=303)
-        set_mod_cookie(response, modauth.make_cookie(user, tokens))  # type: ignore[union-attr]
-        return response
-
-    @app.post("/auth/twitch/logout")
-    async def twitch_logout(request: Request, csrf: str = Form(""), chaine: str = Form("")):
-        response = RedirectResponse(f"/c/{clean_source(chaine)}" if chaine else "/", status_code=303)
-        if tokens_match(request.session.get("csrf"), csrf):
-            response.delete_cookie(COOKIE_NAME, path="/")
-        return response
+        await chat_bot.authorize(tokens, user.login)  # type: ignore[union-attr]
+        return message_page(
+            request, "Bot Twitch autorisé",
+            f"Le bot est maintenant connecté avec le compte « {user.login} ». "
+            f"Il écoute {len(store.list_channels())} chaîne(s) inscrite(s). "
+            f"Chaque streamer doit taper /mod {user.login} dans son chat.",
+        )
 
     def message_page(request: Request, title: str, text: str, status_code: int = 200):
         return templates.TemplateResponse(request, "message.html", {"title": title, "text": text},
                                           status_code=status_code)
 
-    # ------------------------------------------------------- option 3 : extension Twitch
+    # ------------------------------------------------------- option 2 : extension Twitch
 
     def ext_headers() -> dict[str, str]:
         return {
             "Access-Control-Allow-Origin": extension.origin if extension else "null",
-            "Access-Control-Allow-Headers": "Authorization, Content-Type",
+            "Access-Control-Allow-Headers": "Authorization, Content-Type, ngrok-skip-browser-warning",
             "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
             "Access-Control-Max-Age": "600",
             "Vary": "Origin",

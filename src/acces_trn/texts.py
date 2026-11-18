@@ -77,7 +77,7 @@ def chat_line(status: Status, message: str, url: str) -> str:
     return line[:CHAT_MAX]
 
 
-# --- Réponses aux mods (chuchotement, page /c/…, extension) ----------------------
+# --- Réponses aux mods (chuchotement, extension) ----------------------
 
 def request_result_text(outcome: str, status: Status, retry_after_minutes: int | None = None) -> str:
     """Message de confirmation pour la personne (mod ou streamer) qui a fait la demande."""

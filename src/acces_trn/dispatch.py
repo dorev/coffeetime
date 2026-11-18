@@ -1,5 +1,5 @@
-"""Traitement d'une demande de TRN, commun aux trois options
-(commande chat, page Web, extension Twitch).
+"""Traitement d'une demande de TRN, commun aux deux options
+(commande chat, extension Twitch).
 
 Règles :
 - la chaîne doit être inscrite (ajoutée par les TRN via Discord) ;

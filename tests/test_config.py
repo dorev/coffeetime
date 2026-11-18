@@ -41,5 +41,5 @@ def test_invalid(env):
 def test_integrations_flags():
     cfg = load_config(dict(TWITCH_ENV))
     assert cfg.twitch_enabled and cfg.extension_enabled and not cfg.discord_bot_enabled and not cfg.sheets_enabled
-    assert cfg.request_cooldown_minutes == 10 and cfg.mod_session_days == 30
+    assert cfg.request_cooldown_minutes == 10
     assert cfg.twitch_redirect_uri == "https://aide.example.org/auth/twitch/callback"

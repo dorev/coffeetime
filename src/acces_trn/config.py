@@ -34,7 +34,7 @@ class Config:
     discord_role_id: str | None
     discord_bot_token: str | None
     discord_requests_channel_id: str | None
-    # Twitch : connexion des mods (page /c/…) et bot de chat
+    # Twitch : bot de chat (commande !trn) et recherche des chaînes
     twitch_client_id: str | None
     twitch_client_secret: str | None
     bot_setup_key: str | None
@@ -46,7 +46,6 @@ class Config:
     sheets_webhook_secret: str | None
     # Règles
     request_cooldown_minutes: int
-    mod_session_days: int
     default_duration_hours: int
     # Contenu
     org_name: str
@@ -169,7 +168,6 @@ def load_config(env: dict[str, str] | None = None) -> Config:
         sheets_webhook_url=_get(env, "SHEETS_WEBHOOK_URL"),
         sheets_webhook_secret=_get(env, "SHEETS_WEBHOOK_SECRET"),
         request_cooldown_minutes=_int(env, "REQUEST_COOLDOWN_MINUTES", 10, 1, 240),
-        mod_session_days=_int(env, "MOD_SESSION_DAYS", 30, 1, 90),
         default_duration_hours=_int(env, "DEFAULT_DURATION_HOURS", 4, 1, 24),
         org_name=_get(env, "ORG_NAME", "Fondation des Gardiens virtuels") or "",
         hours_text=_get(env, "HOURS_TEXT", "") or "",

@@ -61,7 +61,7 @@ def test_embedding_rules(client):
 
 def test_trousse_uses_base_url_and_source(client):
     html = client.get("/trousse?src=MaChaine").text
-    assert "$(urlfetch https://aide.example.org/status.txt?src=machaine)" in html and "/c/machaine" in html
+    assert "$(urlfetch https://aide.example.org/status.txt?src=machaine)" in html and "!trn" in html
     assert "${customapi.https://aide.example.org/status.txt?src=machaine}" in html
 
 

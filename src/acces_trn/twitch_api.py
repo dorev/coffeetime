@@ -1,5 +1,5 @@
 """Petit client de l'API Twitch (httpx) pour le côté Web :
-connexion des mods, vérification « est-ce un mod de cette chaîne ? », recherche de chaînes.
+autorisation du compte bot, recherche de chaînes et de pseudos.
 Le bot de chat utilise la librairie twitchAPI (voir twitch_bot.py).
 """
 
@@ -14,7 +14,6 @@ import httpx
 AUTH_BASE = "https://id.twitch.tv/oauth2"
 HELIX = "https://api.twitch.tv/helix"
 
-MOD_SCOPES = ("user:read:moderated_channels",)
 BOT_SCOPES = (
     "user:read:chat",                    # lire le chat (EventSub)
     "user:bot",                          # agir comme bot de chat
@@ -123,18 +122,6 @@ class TwitchClient:
             raise TwitchError("Utilisateur introuvable")
         u = data[0]
         return TwitchUser(u["id"], u["login"], u["display_name"])
-
-    async def moderated_channel_ids(self, access_token: str, user_id: str) -> set[str]:
-        """Identifiants des chaînes où `user_id` est modérateur·rice (toutes les pages)."""
-        ids: set[str] = set()
-        params: dict = {"user_id": user_id, "first": 100}
-        while True:
-            body = await self._helix("/moderation/channels", access_token, params)
-            ids.update(c["broadcaster_id"] for c in body.get("data", []))
-            cursor = body.get("pagination", {}).get("cursor")
-            if not cursor:
-                return ids
-            params["after"] = cursor
 
     async def _get_app_token(self) -> str:
         if self._app_token and time.time() < self._app_token_expires - 60:

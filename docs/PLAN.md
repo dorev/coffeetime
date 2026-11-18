@@ -1,8 +1,8 @@
 # Plan — Outil d'accès direct aux TRN
 
 > Mis à jour après la rencontre avec la FGV. Principe : **le moins d'effort possible pour les TRN
-> et pour les streamers**. Les trois façons de faire une demande sont implémentées ; le pilote dira
-> lesquelles garder.
+> et pour les streamers**. Deux façons de faire une demande : la commande chat et l'extension Twitch
+> (la page Web avec connexion Twitch a été retirée pour simplifier).
 
 Légende : ✅ fait dans ce dépôt · 🧪 à valider en conditions réelles · ⬜ à faire
 
@@ -33,16 +33,16 @@ Légende : ✅ fait dans ce dépôt · 🧪 à valider en conditions réelles ·
   à « hors ligne » après `DEFAULT_DURATION_HOURS`. Le panneau se met à jour seul (échéance, page de secours).
 - Salon des demandes : chaîne, heure, source, pseudo du mod, message ; bouton **Je m'en occupe**.
   Mention du rôle TRN seulement quand l'équipe est en service.
-- `/chaine ajouter|retirer|liste` : inscription des chaînes ; le bot donne le lien `/c/<chaîne>` à remettre.
+- `/chaine ajouter|retirer|liste` : inscription des chaînes ; le bot rappelle les étapes pour le streamer.
 
-### Côté streamers et mods — trois options ✅ · 🧪
-| | 1. Commande chat `!trn` | 2. Page `/c/<chaîne>` | 3. Extension Twitch |
-|---|---|---|---|
-| Discrétion | commande visible ~1 s puis effacée | totale | totale |
-| Vérification du rôle | badge du chat | API Twitch, **à chaque demande** | jeton signé par Twitch |
-| Réponse au mod | chuchotement (jamais public) | sur la page | dans le panneau |
-| Effort du streamer | `/mod NomDuBot` | coller un lien dans un panneau | installer l'extension (~5 clics) |
-| Pré-requis FGV | compte bot vérifié | application Twitch | extension en *hosted test* |
+### Côté streamers et mods — deux options ✅ · 🧪
+| | 1. Commande chat `!trn` | 2. Extension Twitch |
+|---|---|---|
+| Discrétion | commande visible ~1 s puis effacée | totale |
+| Vérification du rôle | badge du chat | jeton signé par Twitch |
+| Réponse au mod | chuchotement (jamais public) | dans le panneau |
+| Effort du streamer | `/mod NomDuBot` | installer l'extension (~5 clics) |
+| Pré-requis FGV | compte bot vérifié | extension en *hosted test* |
 
 Règles communes (`dispatch.py`) : chaîne inscrite, **10 minutes** entre deux demandes d'une chaîne
 (les demandes bloquées ne prolongent pas le délai), tout est enregistré.
@@ -58,8 +58,8 @@ Bouton « Parler à un·e TRN » vers le Discord des TRN.
 est injoignable.
 
 ### Qualité ✅
-80 tests automatisés (Twitch, Discord et Google Sheets simulés) : délai, enregistrement, revérification
-des mods, révocation, chiffrement des jetons, extension (rôles, jetons expirés, CORS), chuchotement échoué.
+73 tests automatisés (Twitch, Discord et Google Sheets simulés) : délai, enregistrement, chiffrement
+des jetons du bot, extension (rôles, jetons expirés, CORS), commande chat (mods seulement, chuchotement échoué).
 
 ---
 
@@ -67,7 +67,7 @@ des mods, révocation, chiffrement des jetons, extension (rôles, jetons expiré
 
 ### Étape 1 — Comptes et accès (FGV, ~1 h) ⬜
 - [ ] Application Discord + bot invité dans le serveur des TRN ; rôle TRN ; salon des demandes.
-- [ ] Application Twitch (redirection `<BASE_URL>/auth/twitch/callback`).
+- [ ] Application Twitch (redirection `<BASE_URL>/auth/twitch/callback`, pour autoriser le bot).
 - [ ] Compte Twitch du bot, téléphone vérifié.
 - [ ] Google Sheets + Apps Script (`integrations/google-sheets/`).
 - [ ] Hébergement : à décider (VPS, serveur FGV, Oracle Free) + domaine + HTTPS.
@@ -86,10 +86,9 @@ des mods, révocation, chiffrement des jetons, extension (rôles, jetons expiré
 | 3 | `!trn` par un viewer | Rien ne se passe |
 | 4 | 2ᵉ demande < 10 min (n'importe quelle option) | « Attends X minutes » ; ligne `demande_bloquee_delai` |
 | 5 | Demande avec 🔴 | Publiée sans mention ; mod prévenu avec les ressources ; `demande_sans_trn` |
-| 6 | Page `/c/` : mod connecté, puis retiré des mods | 2ᵉ demande refusée immédiatement |
-| 7 | Extension : viewer vs mod | Le viewer voit le statut seulement ; le mod voit le formulaire |
-| 8 | Chuchotement bloqué (réglages du mod) | Pas de message public ; `chuchotement_echoue` dans le Sheets |
-| 9 | Couper Internet 2 min | Les lignes manquantes arrivent dans le Sheets au retour |
+| 6 | Extension : viewer vs mod | Le viewer voit le statut seulement ; le mod voit le formulaire |
+| 7 | Chuchotement bloqué (réglages du mod) | Pas de message public ; `chuchotement_echoue` dans le Sheets |
+| 8 | Couper Internet 2 min | Les lignes manquantes arrivent dans le Sheets au retour |
 
 ### Étape 4 — Pilote ⬜ (2-4 semaines, 3-5 chaînes)
 Mesurer, par option : nombre de demandes, demandes bloquées, échecs de chuchotement, délai de prise en
@@ -106,9 +105,9 @@ charge (`demande_envoyee` → `demande_prise_en_charge`), retours des mods et de
 
 | Limite | Mitigation |
 |---|---|
-| Commande chat visible ~1 s | Options 2 et 3, totalement discrètes |
-| Chuchotements : téléphone vérifié + quotas Twitch | Échecs enregistrés ; options 2 et 3 n'en dépendent pas |
+| Commande chat visible ~1 s | L'extension est totalement discrète |
+| Chuchotements : téléphone vérifié + quotas Twitch | Échecs enregistrés ; l'extension n'en dépend pas |
 | Extension : approbation Twitch pour une diffusion large | Pilote en *hosted test*, sans approbation |
 | Extension : pseudo du mod seulement s'il partage son identité | Sinon « mod (identité non partagée) » ; la chaîne et l'heure suffisent |
-| Panneaux d'extension sur mobile | À vérifier pendant le pilote ; la page `/c/` fonctionne partout |
+| Panneaux d'extension sur mobile | À vérifier pendant le pilote ; la commande chat fonctionne partout |
 | Statut oublié | Retour automatique à « hors ligne » |

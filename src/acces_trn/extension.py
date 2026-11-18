@@ -1,4 +1,4 @@
-"""Backend de l'extension Twitch (option 3).
+"""Backend de l'extension Twitch (option 2).
 
 Le panneau de l'extension envoie le jeton JWT fourni par Twitch. Ce jeton est signé
 avec le secret de l'extension et indique le rôle de la personne sur la chaîne

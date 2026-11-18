@@ -38,7 +38,7 @@ async def test_sent_when_trn_available(service, store):
 
 
 async def test_no_trn_is_logged_and_posted_without_mention(service, store):
-    res = await service.submit("chaine", source="page", requested_by="mod1", now=NOW)
+    res = await service.submit("chaine", source="extension", requested_by="mod1", now=NOW)
     assert res.outcome is Outcome.NO_TRN
     assert service.notified == [(res.request.id, False)]
     assert types(store)[-1] == "demande_sans_trn"
@@ -46,7 +46,7 @@ async def test_no_trn_is_logged_and_posted_without_mention(service, store):
 
 async def test_cooldown_ten_minutes_and_logged(service, store):
     await service.submit("chaine", source="chat", requested_by="mod1", now=NOW)
-    res = await service.submit("chaine", source="page", requested_by="mod2", message="encore",
+    res = await service.submit("chaine", source="extension", requested_by="mod2", message="encore",
                                now=NOW + timedelta(minutes=3))
     assert res.outcome is Outcome.COOLDOWN and res.retry_after_minutes == 7
     assert len(service.notified) == 1                         # pas republié dans Discord

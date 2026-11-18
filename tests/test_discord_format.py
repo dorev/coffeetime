@@ -12,14 +12,14 @@ CONFIG = load_config(dict(BASE_ENV))
 
 
 def test_request_embed_and_claim(store):
-    req = store.add_request(channel="chaine", source="page", requested_by="lea_mod", message="ça dérape",
+    req = store.add_request(channel="chaine", source="extension", requested_by="lea_mod", message="ça dérape",
                             outcome="envoyee", trn_status="available",
                             now=datetime(2026, 11, 6, 2, 41, tzinfo=timezone.utc))
     embed = build_request_embed(req, CONFIG)
     assert embed.title == "📣 Demande de la chaîne chaine"
     values = {f.name: f.value for f in embed.fields}
     assert values["Heure"] == "21 h 41"  # heure de Montréal
-    assert values["Via"] == "page Web · lea_mod" and values["Message"] == "ça dérape"
+    assert values["Via"] == "extension Twitch · lea_mod" and values["Message"] == "ça dérape"
     assert [c.custom_id for c in build_request_view(req).children] == [f"demande:prendre:{req.id}"]
     claimed = store.claim_request(req.id, "Max")
     assert build_request_view(claimed).children == []

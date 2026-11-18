@@ -26,7 +26,7 @@ from .twitch_api import TwitchClient, TwitchError
 log = logging.getLogger(__name__)
 
 PANEL_SECRET = "discord_status_panel"  # « channel_id:message_id » du panneau
-SOURCE_LABELS = {"chat": "commande !trn", "page": "page Web", "extension": "extension Twitch"}
+SOURCE_LABELS = {"chat": "commande !trn", "extension": "extension Twitch"}
 STATUS_COLORS = {
     Status.AVAILABLE: discord.Color.green(),
     Status.BUSY: discord.Color.gold(),
@@ -285,13 +285,11 @@ def register_commands(bot: TrnBot) -> None:
         if bot.chat_bot is not None:
             await bot.chat_bot.add_channel(channel)
         base = bot.config.base_url
-        bot_line = (
-            f"\n• Commande chat : le streamer tape `/mod {bot.chat_bot.bot_login}` une fois."
-            if bot.chat_bot is not None and bot.chat_bot.bot_login else ""
-        )
+        bot_name = bot.chat_bot.bot_login if bot.chat_bot is not None and bot.chat_bot.bot_login else "NomDuBot"
         await interaction.followup.send(
             f"✅ **{channel.display_name}** est inscrite.\n"
-            f"• Lien pour les mods : {base}/c/{channel.login}{bot_line}\n"
+            f"• Commande chat : le streamer tape une fois `/mod {bot_name}` dans son chat.\n"
+            f"• Extension : ajouter le compte « {channel.login} » à la liste de test de l'extension (pilote).\n"
             f"• Trousse : {base}/trousse?src={channel.login}",
             ephemeral=True,
         )
@@ -314,7 +312,7 @@ def register_commands(bot: TrnBot) -> None:
         if not await ensure_trn(interaction):
             return
         channels = bot.store.list_channels()
-        text = "\n".join(f"• {c.display_name} — {bot.config.base_url}/c/{c.login}" for c in channels)
+        text = "\n".join(f"• {c.display_name} — https://twitch.tv/{c.login}" for c in channels)
         await interaction.response.send_message(text or "Aucune chaîne inscrite.", ephemeral=True)
 
     tree.add_command(chaine)
